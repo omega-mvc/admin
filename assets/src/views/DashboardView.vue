@@ -153,26 +153,17 @@ const saveMessage = computed(() => {
     return sprintf(_n('%s panel hidden', '%s panels hidden', hiddenCount.value), hiddenCount.value)
   }
 
-  return __('Layout saved')
+  /*
+   * Empty when there is nothing to report. The status line used to rest on
+   * 'Layout saved', which is not a message: it described an absence, it never
+   * appeared because something happened, and it sat permanently above the grid.
+   */
+  return ''
 })
 </script>
 
 <template>
   <section>
-    <header class="mb-5">
-      <h1 class="text-xl font-semibold">{{ __('Dashboard') }}</h1>
-
-      <p v-if="data" class="mt-1 text-sm text-ink-muted">
-        <a :href="data.site.url" class="hover:text-accent">{{ data.site.name }}</a>
-        <span class="mx-1.5 text-ink-faint">·</span>
-        WordPress {{ data.site.version }}
-        <span class="mx-1.5 text-ink-faint">·</span>
-        PHP {{ data.site.php }}
-        <span class="mx-1.5 text-ink-faint">·</span>
-        {{ data.site.language }}
-      </p>
-    </header>
-
     <div v-if="query.isLoading.value" class="flex items-center gap-2 py-16 text-sm text-ink-muted">
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />
       {{ __('Loading dashboard…') }}
@@ -196,6 +187,7 @@ const saveMessage = computed(() => {
     <template v-else-if="data">
       <div class="mb-3 flex min-h-6 items-center gap-3">
         <p
+          v-if="saveMessage"
           class="flex items-center gap-1.5 text-xs"
           :class="saveFailed ? 'text-caution' : 'text-ink-muted'"
           role="status"

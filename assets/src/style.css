@@ -143,6 +143,18 @@
 }
 
 /*
+ * The empty heading left behind by `AdminShell::suppressScreenHeading()`.
+ *
+ * Core prints `<h1><?php echo esc_html( $title ); ?></h1>` as a bare echo with no
+ * filter, so the only way to drop the word is to blank `$title` and collapse what
+ * is left. `:empty` can only match a heading with no content, so this cannot hide
+ * a heading some other screen meant to show.
+ */
+body.admin-suite-shell #wpbody-content h1:empty {
+  display: none;
+}
+
+/*
  * White background for every suite page.
  *
  * `admin-suite-shell` is the class `AdminShell::bodyClass()` puts on the admin
@@ -157,12 +169,29 @@
  * ours, which is the agreed next step; flipping it now would put core's dark text
  * on a dark background and make the page unreadable.
  */
-body.admin-suite-shell #wpbody-content h1:empty {
-  display: none;
-}
-
 body.admin-suite-shell #wpcontent {
   background: var(--suite-canvas);
+}
+
+/*
+ * Core's own Screen Options button, which the suite replaces with its own.
+ *
+ * It has to be hidden rather than removed. `WP_Screen::show_screen_options()`
+ * begins with a short-circuit on a private, unfiltered `$_show_screen_options`
+ * property, `render_screen_options()` only runs behind it, and `remove_options()`
+ * empties `_options` without ever reaching that flag. There is no filter on any of
+ * it, so the button cannot be switched off from PHP without writing to a private
+ * property of another class by reflection.
+ *
+ * `display: none` rather than `visibility: hidden` on purpose: it also takes the
+ * button out of the tab order and out of the accessibility tree, so for anyone
+ * using the page it is gone rather than merely invisible.
+ *
+ * Scoped to the wrapper and not to `#screen-meta-links`, so a future suite screen
+ * that does register help tabs keeps its Help button.
+ */
+body.admin-suite-shell #screen-options-link-wrap {
+  display: none;
 }
 
 /*
