@@ -342,17 +342,98 @@ final class Enqueue {
 		$base  = AdminContext::baseUrl( $admin );
 
 		return array(
-			'restUrl'   => esc_url_raw( rest_url( 'admin-suite/v1/' ) ),
-			'nonce'     => wp_create_nonce( 'wp_rest' ),
-			'homeUrl'   => esc_url_raw( $base ),
-			'admin'     => $admin,
-			'suiteUrl'  => esc_url_raw( $base . 'index.php' ),
-			'canManage' => current_user_can( 'manage_options' ),
-			'canEdit'   => current_user_can( 'edit_posts' ),
-			'canUpload' => current_user_can( 'upload_files' ),
-			'siteName'  => get_bloginfo( 'name' ),
-			'locale'    => determine_locale(),
-			'pluginVer' => ADMIN_SUITE_VERSION,
+			'restUrl'    => esc_url_raw( rest_url( 'admin-suite/v1/' ) ),
+			'nonce'      => wp_create_nonce( 'wp_rest' ),
+			'homeUrl'    => esc_url_raw( $base ),
+			'admin'      => $admin,
+			'suiteUrl'   => esc_url_raw( $base . 'index.php' ),
+			'canManage'  => current_user_can( 'manage_options' ),
+			'canEdit'    => current_user_can( 'edit_posts' ),
+			'canUpload'  => current_user_can( 'upload_files' ),
+			'siteName'   => get_bloginfo( 'name' ),
+			'locale'     => determine_locale(),
+			'pluginVer'  => ADMIN_SUITE_VERSION,
+			'newContent' => $this->newContentMenu(),
+		);
+	}
+
+	/**
+	 * Core's admin bar "New" menu, rebuilt for the SPA toolbar.
+	 *
+	 * `wp_admin_bar_new_content_menu()` is a plain function that fills whatever
+	 * `WP_Admin_Bar` instance it is handed, and the class is happy on a bare
+	 * `new WP_Admin_Bar()` with no `initialize()` behind it: a CLI probe
+	 * produced an identical node list either way, so nothing has to be faked.
+	 * The SPA therefore gets exactly the entries the admin bar itself would
+	 * show, in core's order, behind core's capability checks and carrying core's
+	 * own translations, and none of the markup coupling that reading the
+	 * rendered `#wpadminbar` out of the DOM would mean.
+	 *
+	 * What is deliberately *not* reproduced is the registration guard. Core only
+	 * hooks this in when `! is_network_admin() && ! is_user_admin()`
+	 * (`class-wp-admin-bar.php:669`), so in the network and the user admin the
+	 * menu does not exist at all. Here that becomes an empty list. The test is
+	 * safe to make with `AdminContext::detect()` because this only runs from the
+	 * enqueue path, where a real screen and the `WP_NETWORK_ADMIN` constant both
+	 * exist; inside a REST request neither does, and the constant in particular
+	 * would answer the wrong question.
+	 *
+	 * Core also emits no node whatsoever when the user cannot create anything,
+	 * which is a second and completely legitimate route to an empty menu: an
+	 * administrator has no `manage_links`, so there is no Link entry either.
+	 *
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 */
+	private function newContentMenu(): array {
+		$empty = array(
+			'label' => '',
+			'items' => array(),
+		);
+
+		if ( AdminContext::SITE !== AdminContext::detect() ) {
+			return $empty;
+		}
+
+		if ( ! class_exists( '\WP_Admin_Bar' ) || ! function_exists( 'wp_admin_bar_new_content_menu' ) ) {
+			return $empty;
+		}
+
+		$bar = new \WP_Admin_Bar();
+
+		wp_admin_bar_new_content_menu( $bar );
+
+		$nodes = $bar->get_nodes();
+
+		if ( ! is_array( $nodes ) ) {
+			return $empty;
+		}
+
+		$items = array();
+		$label = '';
+
+		foreach ( $nodes as $node ) {
+			$text = wp_strip_all_tags( (string) $node->title );
+
+			if ( 'new-content' === $node->id ) {
+				$label = $text;
+
+				continue;
+			}
+
+			$items[] = array(
+				'id'    => (string) $node->id,
+				'label' => $text,
+				'url'   => esc_url_raw( (string) $node->href ),
+			);
+		}
+
+		if ( array() === $items ) {
+			return $empty;
+		}
+
+		return array(
+			'label' => $label,
+			'items' => $items,
 		);
 	}
 }

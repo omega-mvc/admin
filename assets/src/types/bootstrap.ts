@@ -13,6 +13,32 @@
  */
 export type AdminArea = 'site' | 'network' | 'user'
 
+/**
+ * One entry in core's admin bar "New" menu.
+ *
+ * `url` is an absolute admin URL. The list is whatever
+ * `wp_admin_bar_new_content_menu()` produced for the current user, in core's
+ * order, behind core's own capability checks. Mirrors `Enqueue::newContentMenu()`.
+ */
+export interface NewContentItem {
+  readonly id: string
+  readonly label: string
+  readonly url: string
+}
+
+/**
+ * Core's admin bar "New" menu.
+ *
+ * Both fields are empty when the menu does not exist at all, which happens in
+ * two entirely legitimate ways: WordPress only registers it outside the network
+ * and user admins, and it emits nothing at all for a user who cannot create
+ * anything. An empty list means the button is not shown, not that it is broken.
+ */
+export interface NewContentMenu {
+  readonly label: string
+  readonly items: readonly NewContentItem[]
+}
+
 export interface Bootstrap {
   readonly restUrl: string
   readonly nonce: string
@@ -31,6 +57,8 @@ export interface Bootstrap {
    */
   readonly locale: string
   readonly pluginVer: string
+  /** Core's admin bar "New" menu, ready for the toolbar's `+`. */
+  readonly newContent: NewContentMenu
 }
 
 declare global {

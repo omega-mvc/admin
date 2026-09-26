@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { PanelLeftClose, PanelLeftOpen, Search } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { PanelLeftClose, PanelLeftOpen, Plus, Search } from 'lucide-vue-next'
 
 import CommandPalette from '@/components/CommandPalette.vue'
 import { useAppStore } from '@/stores'
@@ -35,10 +35,50 @@ function readMenuState(): void {
 
   menuFolded.value =
     body.classList.contains('folded') || (narrow && body.classList.contains('auto-fold'))
+
+  if (!menuFolded.value) {
+    newMenuOpen.value = false
+  }
 }
 
 function toggleMenu(): void {
   document.getElementById('collapse-button')?.click()
+}
+
+/*
+ * Core's admin bar "New" menu, already rebuilt by `Enqueue::newContentMenu()`
+ * out of core's own function, so the entries, their order, their capability
+ * checks and their labels are core's rather than a reimplementation. The empty
+ * state is meaningful: it is what the network and user admins get, and also
+ * what a user who cannot create anything gets.
+ */
+const newMenu = window.ADMIN_SUITE_BOOTSTRAP?.newContent ?? { label: '', items: [] }
+
+const newMenuOpen = ref(false)
+
+const newMenuRef = ref<HTMLElement | null>(null)
+
+/*
+ * Only while the admin menu is folded. With the menu open, WordPress's own `+`
+ * is already there in the admin bar, and a second copy of the same list one
+ * screen lower would just be noise.
+ */
+const showNewMenu = computed(() => menuFolded.value && newMenu.items.length > 0)
+
+function toggleNewMenu(): void {
+  newMenuOpen.value = !newMenuOpen.value
+}
+
+function onPointerDown(event: MouseEvent): void {
+  if (!newMenuRef.value?.contains(event.target as Node)) {
+    newMenuOpen.value = false
+  }
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    newMenuOpen.value = false
+  }
 }
 
 /*
@@ -58,11 +98,15 @@ onMounted(() => {
   }
 
   window.addEventListener('resize', readMenuState)
+  document.addEventListener('pointerdown', onPointerDown)
+  document.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
   classObserver?.disconnect()
   window.removeEventListener('resize', readMenuState)
+  document.removeEventListener('pointerdown', onPointerDown)
+  document.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -92,7 +136,7 @@ onBeforeUnmount(() => {
       apart by however much the admin menu takes.
     -->
     <div class="@container min-w-0 p-6">
-      <div class="mb-4 flex items-center justify-end gap-2">
+      <div class="mb-4 flex items-center gap-2">
         <button
           type="button"
           class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-ink-muted hover:bg-sunken"
@@ -102,6 +146,40 @@ onBeforeUnmount(() => {
           <PanelLeftOpen v-if="menuFolded" class="size-4" aria-hidden="true" />
           <PanelLeftClose v-else class="size-4" aria-hidden="true" />
         </button>
+
+        <div v-if="showNewMenu" ref="newMenuRef" class="relative">
+          <button
+            type="button"
+            class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-ink-muted hover:bg-sunken"
+            :aria-label="__('Create new')"
+            :aria-expanded="newMenuOpen"
+            aria-controls="suite-new-menu"
+            @click="toggleNewMenu"
+          >
+            <Plus class="size-4" aria-hidden="true" />
+          </button>
+
+          <!--
+            A disclosure, not a menu. The contents are a short list of links, so
+            an `aria-haspopup` menu would promise arrow-key navigation this popup
+            does not implement; `aria-expanded` plus `aria-controls` is the
+            pattern that matches what it actually is.
+          -->
+          <ul
+            v-if="newMenuOpen"
+            id="suite-new-menu"
+            class="absolute top-full left-0 z-10 mt-1 min-w-44 overflow-hidden rounded-md border border-line bg-panel py-1 shadow-lg"
+          >
+            <li v-for="item in newMenu.items" :key="item.id">
+              <a
+                :href="item.url"
+                class="block px-3 py-1.5 text-sm text-ink-muted hover:bg-sunken hover:text-ink"
+              >
+                {{ item.label }}
+              </a>
+            </li>
+          </ul>
+        </div>
 
         <button
           type="button"
