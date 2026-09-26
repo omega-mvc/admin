@@ -59,6 +59,22 @@ export interface Bootstrap {
   readonly pluginVer: string
   /** Core's admin bar "New" menu, ready for the toolbar's `+`. */
   readonly newContent: NewContentMenu
+  /**
+   * Front-end URL, read from core's own `view-site` node rather than guessed.
+   *
+   * Empty when core published no such node, in which case the toolbar shows no
+   * site button.
+   */
+  readonly siteFrontUrl: string
+  /**
+   * The admin bar's WordPress logo menu: About WordPress, Get Involved,
+   * WordPress.org, Documentation, Learn WordPress, Support, Feedback.
+   *
+   * It is the first menu on the left of the admin bar, and core registers it at
+   * priority 10 outside the network and user admin guard, so unlike
+   * `newContent` it exists in all three areas.
+   */
+  readonly docs: NewContentMenu
 }
 
 declare global {

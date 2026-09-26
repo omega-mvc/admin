@@ -342,18 +342,20 @@ final class Enqueue {
 		$base  = AdminContext::baseUrl( $admin );
 
 		return array(
-			'restUrl'    => esc_url_raw( rest_url( 'admin-suite/v1/' ) ),
-			'nonce'      => wp_create_nonce( 'wp_rest' ),
-			'homeUrl'    => esc_url_raw( $base ),
-			'admin'      => $admin,
-			'suiteUrl'   => esc_url_raw( $base . 'index.php' ),
-			'canManage'  => current_user_can( 'manage_options' ),
-			'canEdit'    => current_user_can( 'edit_posts' ),
-			'canUpload'  => current_user_can( 'upload_files' ),
-			'siteName'   => get_bloginfo( 'name' ),
-			'locale'     => determine_locale(),
-			'pluginVer'  => ADMIN_SUITE_VERSION,
-			'newContent' => $this->newContentMenu(),
+			'restUrl'      => esc_url_raw( rest_url( 'admin-suite/v1/' ) ),
+			'nonce'        => wp_create_nonce( 'wp_rest' ),
+			'homeUrl'      => esc_url_raw( $base ),
+			'admin'        => $admin,
+			'suiteUrl'     => esc_url_raw( $base . 'index.php' ),
+			'canManage'    => current_user_can( 'manage_options' ),
+			'canEdit'      => current_user_can( 'edit_posts' ),
+			'canUpload'    => current_user_can( 'upload_files' ),
+			'siteName'     => get_bloginfo( 'name' ),
+			'locale'       => determine_locale(),
+			'pluginVer'    => ADMIN_SUITE_VERSION,
+			'newContent'   => $this->newContentMenu(),
+			'siteFrontUrl' => $this->siteFrontUrl(),
+			'docs'         => $this->documentationMenu(),
 		);
 	}
 
@@ -385,27 +387,136 @@ final class Enqueue {
 	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
 	 */
 	private function newContentMenu(): array {
-		$empty = array(
-			'label' => '',
-			'items' => array(),
-		);
-
 		if ( AdminContext::SITE !== AdminContext::detect() ) {
-			return $empty;
+			return self::emptyMenu();
 		}
 
-		if ( ! class_exists( '\WP_Admin_Bar' ) || ! function_exists( 'wp_admin_bar_new_content_menu' ) ) {
-			return $empty;
+		if ( ! function_exists( 'wp_admin_bar_new_content_menu' ) ) {
+			return self::emptyMenu();
 		}
 
-		$bar = new \WP_Admin_Bar();
+		$bar = self::emptyBar();
+
+		if ( ! $bar instanceof \WP_Admin_Bar ) {
+			return self::emptyMenu();
+		}
 
 		wp_admin_bar_new_content_menu( $bar );
+
+		return $this->menuFromBar( $bar, 'new-content' );
+	}
+
+	/**
+	 * The front-end link, taken from the node core itself publishes.
+	 *
+	 * `wp_admin_bar_site_menu()` decides where "Visit Site" points, which is not
+	 * always `home_url( '/' )`: on an install whose `home` and `siteurl` differ,
+	 * reading core's own node is the difference between the right answer and a
+	 * plausible one. That node is added unconditionally, outside the network and
+	 * user admin guard, so there is nothing to test here.
+	 */
+	private function siteFrontUrl(): string {
+		if ( ! function_exists( 'wp_admin_bar_site_menu' ) ) {
+			return '';
+		}
+
+		$bar = self::emptyBar();
+
+		if ( ! $bar instanceof \WP_Admin_Bar ) {
+			return '';
+		}
+
+		wp_admin_bar_site_menu( $bar );
 
 		$nodes = $bar->get_nodes();
 
 		if ( ! is_array( $nodes ) ) {
-			return $empty;
+			return '';
+		}
+
+		foreach ( $nodes as $node ) {
+			if ( 'view-site' === $node->id ) {
+				return esc_url_raw( (string) $node->href );
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * The documentation menu, which in the admin bar is the WordPress logo: the
+	 * first menu on the left, holding About WordPress, Get Involved, WordPress.org,
+	 * Documentation, Learn WordPress, Support and Feedback.
+	 *
+	 * `wp_admin_bar_wp_menu()` is registered at priority 10, outside the network
+	 * and user admin guard, so this menu does exist in all three admin areas and
+	 * needs no test of its own.
+	 *
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 */
+	private function documentationMenu(): array {
+		if ( ! function_exists( 'wp_admin_bar_wp_menu' ) ) {
+			return self::emptyMenu();
+		}
+
+		$bar = self::emptyBar();
+
+		if ( ! $bar instanceof \WP_Admin_Bar ) {
+			return self::emptyMenu();
+		}
+
+		wp_admin_bar_wp_menu( $bar );
+
+		return $this->menuFromBar( $bar, 'wp-logo' );
+	}
+
+	/**
+	 * A bare admin bar to hand a core builder.
+	 *
+	 * `initialize()` is not required: a CLI probe produced an identical node list
+	 * with and without it, because every builder under `wp-includes/admin-bar.php`
+	 * supplies its own node ids. The class file is not loaded in a REST request,
+	 * hence the `class_exists()` test.
+	 */
+	private static function emptyBar(): ?\WP_Admin_Bar {
+		if ( ! class_exists( '\WP_Admin_Bar' ) ) {
+			return null;
+		}
+
+		return new \WP_Admin_Bar();
+	}
+
+	/**
+	 * The shape a menu takes when there is nothing to offer, which is a normal
+	 * outcome and not an error: core hides a menu rather than rendering it empty.
+	 *
+	 * @return array{label: string, items: list<never>}
+	 */
+	private static function emptyMenu(): array {
+		return array(
+			'label' => '',
+			'items' => array(),
+		);
+	}
+
+	/**
+	 * Flattens a built bar into a label and a list of links.
+	 *
+	 * The parent node carries the menu's own title wrapped in the admin bar's
+	 * icon and label spans, so its tags are stripped; every other node is a
+	 * child link. `get_nodes()` is typed `array|null` in the stubs, so the
+	 * result is checked rather than looped over.
+	 *
+	 * @param \WP_Admin_Bar $bar     A bar a core builder has already filled.
+	 * @param string        $parentId Node id whose title becomes the menu label.
+	 *
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 */
+	private function menuFromBar( \WP_Admin_Bar $bar, string $parentId ): array {
+		$nodes = $bar->get_nodes();
+
+		if ( ! is_array( $nodes ) ) {
+			return self::emptyMenu();
 		}
 
 		$items = array();
@@ -414,7 +525,7 @@ final class Enqueue {
 		foreach ( $nodes as $node ) {
 			$text = wp_strip_all_tags( (string) $node->title );
 
-			if ( 'new-content' === $node->id ) {
+			if ( $parentId === $node->id ) {
 				$label = $text;
 
 				continue;
@@ -428,7 +539,7 @@ final class Enqueue {
 		}
 
 		if ( array() === $items ) {
-			return $empty;
+			return self::emptyMenu();
 		}
 
 		return array(
