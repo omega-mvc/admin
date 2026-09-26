@@ -46,8 +46,20 @@ export default defineConfig(({ mode }) => ({
     },
     rollupOptions: {
       output: {
-        assetFileNames: 'assets/[name][extname]',
-        chunkFileNames: 'assets/[name].js',
+        // The hash in both patterns is load-bearing, not tidiness. Without it
+        // the emitted names are byte-stable across builds, so the browser keys
+        // its cache on a URL that never changes and keeps serving the previous
+        // bundle until someone clears the cache by hand.
+        //
+        // It also silently defeats the cache buster in Enqueue. Library mode
+        // makes the enqueued entry a facade — a shim whose whole body is
+        // `import "./assets/main.js"` — so hashing *that* file produces a
+        // constant, because the shim's bytes never change. With a hash here,
+        // a rebuild renames the real chunk, the shim's import specifier changes
+        // with it, and Enqueue's md5 of the shim finally moves too.
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        sourcemapFileNames: 'assets/[name]-[hash].js.map',
       },
     },
   },
