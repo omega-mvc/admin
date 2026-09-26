@@ -40,6 +40,7 @@ final class AdminShell {
 		add_action( 'admin_head', array( $this, 'removeContextualHelp' ) );
 		add_action( 'in_admin_header', array( $this, 'suppressScreenHeading' ) );
 		add_action( 'wp_dashboard_setup', array( $this, 'detachWelcomePanel' ) );
+		add_action( 'wp_dashboard_setup', array( $this, 'detachNativeWidgets' ) );
 	}
 
 	/**
@@ -114,6 +115,77 @@ final class AdminShell {
 	 */
 	public function detachWelcomePanel(): void {
 		remove_all_actions( 'welcome_panel' );
+	}
+
+	/**
+	 * Stop WordPress from printing its own widgets into the mount point.
+	 *
+	 * `wp_dashboard()` is called directly at `wp-admin/index.php:205` rather than
+	 * through a `do_action()`, so the boxes cannot be detached with `remove_action()`
+	 * and there is no filter to intercept. They are printed inside
+	 * `#dashboard-widgets-wrap`, which is the element the SPA mounts on, so between
+	 * the HTML arriving and the module executing, a visitor sees the native dashboard
+	 * for a fraction of a second and then watches it get replaced. Removing the boxes
+	 * is the only way to stop that: the markup is never produced, so there is nothing
+	 * to flash.
+	 *
+	 * This gives up the fallback on purpose. The boxes were left registered precisely
+	 * so that a bundle which failed to boot would leave WordPress's own dashboard on
+	 * screen. A blank area is the more honest failure mode: a core dashboard that the
+	 * suite is about to replace reads as a rendering fault, not as a fallback.
+	 *
+	 * REST requests are excluded, and must be. `DashboardController::nativeWidgets()`
+	 * calls `wp_dashboard_setup()` to build the very inventory the SPA is served, so
+	 * removing the boxes unconditionally would leave the suite with nothing to show.
+	 * That is also why the check comes before the screen test: during a REST request
+	 * the controller installs a faked `dashboard` screen, so `isSuiteScreen()` answers
+	 * yes and cannot be relied on to tell the two apart.
+	 *
+	 * `wp_dashboard_setup` is the only hook in the window. It fires at
+	 * `wp-admin/includes/dashboard.php:135`, after the boxes are registered and long
+	 * before `index.php:205` prints them. `admin_init` is too early: it fires at
+	 * `wp-admin/admin.php:180`, before the screen file is loaded at all.
+	 */
+	public function detachNativeWidgets(): void {
+		global $wp_meta_boxes;
+
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( ! $screen instanceof \WP_Screen || ! self::isSuiteScreen() ) {
+			return;
+		}
+
+		// The screen id is already the per-area key, and the inventory is keyed the
+		// same way, so there is nothing to recompute here.
+		$screen_id = $screen->id;
+
+		if ( empty( $wp_meta_boxes[ $screen_id ] ) || ! is_array( $wp_meta_boxes[ $screen_id ] ) ) {
+			return;
+		}
+
+		foreach ( $wp_meta_boxes[ $screen_id ] as $context => $priorities ) {
+			if ( ! is_array( $priorities ) ) {
+				continue;
+			}
+
+			foreach ( $priorities as $boxes ) {
+				if ( ! is_array( $boxes ) ) {
+					continue;
+				}
+
+				foreach ( $boxes as $box ) {
+					if ( ! is_array( $box ) || empty( $box['id'] ) ) {
+						continue;
+					}
+
+					remove_meta_box( $box['id'], $screen_id, $context );
+				}
+			}
+		}
 	}
 
 	/**
