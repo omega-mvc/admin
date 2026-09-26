@@ -20,9 +20,10 @@ defined( 'ABSPATH' ) || exit;
  * possible without output buffering. `wp_dashboard()` is invoked inline rather
  * than through a `do_action()`, so there is no hook to detach the core widgets
  * with, while `createApp().mount()` replaces an element's contents and keeps
- * the element. The `<h1>`, the admin bar, the notices and the wp-admin menu all
- * stay where WordPress puts them, and if the bundle ever fails to boot the real
- * dashboard is still on screen.
+ * the element. The notices and the wp-admin menu stay where WordPress puts
+ * them, while the `<h1>` is blanked and the admin bar is detached, so the
+ * panel is ours from the first pixel. If the bundle ever fails to boot the
+ * real dashboard is still on screen.
  */
 final class AdminShell {
 
@@ -37,10 +38,39 @@ final class AdminShell {
 	public function register(): void {
 		add_filter( 'admin_body_class', array( $this, 'bodyClass' ) );
 		add_action( 'init', array( $this, 'retireLegacyEntry' ) );
+		add_action( 'admin_init', array( $this, 'detachAdminBar' ) );
 		add_action( 'admin_head', array( $this, 'removeContextualHelp' ) );
 		add_action( 'in_admin_header', array( $this, 'suppressScreenHeading' ) );
 		add_action( 'wp_dashboard_setup', array( $this, 'detachWelcomePanel' ) );
 		add_action( 'wp_dashboard_setup', array( $this, 'detachNativeWidgets' ) );
+	}
+
+	/**
+	 * Remove WordPress's own topbar.
+	 *
+	 * Core registers the renderer on `in_admin_header` at priority 0 in
+	 * `default-filters.php:724`, and `WP_Admin_Bar::_render()` is the only
+	 * thing in wp-admin that prints the markup: neither `admin-header.php` nor
+	 * `admin-footer.php` mentions the bar. Detaching the callback therefore
+	 * takes the wrapper, the quicklinks container and every node together.
+	 *
+	 * The documented way of hiding the bar, the `show_admin_bar` filter, cannot
+	 * work on an admin screen. `is_admin_bar_showing()` returns `true` at
+	 * `admin-bar.php:1443-1445` for any request where `is_admin()`, which is
+	 * before its own `apply_filters()` at `:1465` is reached.
+	 *
+	 * The band the bar reserved is undone in `style.css` instead. The class
+	 * that carries it is built by a local in `_wp_admin_html_begin()`
+	 * (`template.php:2661`) and has no filter, so CSS is the only seam left.
+	 *
+	 * The detachment has to happen before the hook fires rather than during it.
+	 * Core's callback is already at priority 0 by then, so doing this from a
+	 * later `in_admin_header` callback detaches nothing and still leaves the
+	 * markup in the buffer. `admin_init` is the seam: the admin header is
+	 * required long after it, and the action is registered by then.
+	 */
+	public function detachAdminBar(): void {
+		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 	}
 
 	/**

@@ -109,6 +109,21 @@
 }
 
 /*
+ * The band the admin bar used to reserve.
+ *
+ * The bar itself is detached in PHP, but the class that carried its height is
+ * not: it comes from a local in `_wp_admin_html_begin()` (`template.php:2661`)
+ * that no filter reaches, so `wp-toolbar` stays on `<html>` and `common.css`
+ * keeps its `padding-top` there. `:has()` outranks core's `html.wp-toolbar` on
+ * specificity, so this does not depend on our stylesheet being printed after
+ * `common`, and reading the class off the body keeps it off screens the suite
+ * does not own.
+ */
+html.wp-toolbar:has(> body.admin-suite-shell) {
+  padding-top: 0;
+}
+
+/*
  * The empty heading left behind by `AdminShell::suppressScreenHeading()`.
  *
  * Core prints `<h1><?php echo esc_html( $title ); ?></h1>` as a bare echo with no
@@ -126,8 +141,8 @@ body.admin-suite-shell #wpbody-content h1:empty {
  * `admin-suite-shell` is the class `AdminShell::bodyClass()` puts on the admin
  * body, so this follows the suite automatically: any screen the suite takes over
  * gets a white canvas without a per-page rule. Scoping it to `#wpcontent` and not
- * to `body` keeps WordPress's own surfaces — the admin bar, the admin menu — on
- * the colours core gives them, so this is a background and not a repaint.
+ * to `body` keeps WordPress's own surfaces, above all the admin menu, on the
+ * colours core gives them, so this is a background and not a repaint.
  */
 body.admin-suite-shell #wpcontent {
   background: var(--suite-canvas);
