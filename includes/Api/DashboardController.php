@@ -478,7 +478,13 @@ final class DashboardController {
 				'id'      => self::WELCOME_ID,
 				'title'   => __( 'Welcome', 'admin-suite' ),
 				'context' => 'normal',
-				'span'    => $this->spanOf( 'normal' ),
+
+				/*
+				 * Not `spanOf( 'normal' )`, which is 2. The panel reads as the
+				 * counterpart of the site overview right below it, so it takes the
+				 * same 3 that `builtInPanels()` gives that one.
+				 */
+				'span'    => 3,
 			);
 		}
 
