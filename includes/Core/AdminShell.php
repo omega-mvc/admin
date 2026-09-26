@@ -38,7 +38,34 @@ final class AdminShell {
 		add_filter( 'admin_body_class', array( $this, 'bodyClass' ) );
 		add_action( 'init', array( $this, 'retireLegacyEntry' ) );
 		add_action( 'admin_head', array( $this, 'removeContextualHelp' ) );
+		add_action( 'in_admin_header', array( $this, 'suppressScreenHeading' ) );
 		add_action( 'wp_dashboard_setup', array( $this, 'detachWelcomePanel' ) );
+	}
+
+	/**
+	 * Blank the page heading, so the suite is not labelled by WordPress.
+	 *
+	 * `wp-admin/index.php:141` prints the heading as a bare echo with no filter
+	 * around it, so the string has to be emptied rather than intercepted.
+	 *
+	 * `in_admin_header` is the only seam that works. It fires at
+	 * `wp-admin/admin-header.php:277`, which is *inside* the
+	 * `require_once admin-header.php` on `index.php:137` and therefore before
+	 * line 141. `$title` is set on `index.php:33` and, because the screen file is
+	 * included at global scope by `wp-admin/admin.php`, it is a real global.
+	 *
+	 * Timing also keeps the document title intact: the `<title>` element is written
+	 * at `admin-header.php:95`, long before this runs, so only the visible heading
+	 * is affected.
+	 *
+	 * The element itself still exists and is empty. `style.css` collapses it with
+	 * an `:empty` rule, which can only ever match a heading with no content in it.
+	 */
+	public function suppressScreenHeading(): void {
+		global $title;
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride -- Blanking core's own heading; see above.
+		$title = '';
 	}
 
 	/**

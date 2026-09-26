@@ -157,6 +157,10 @@
  * ours, which is the agreed next step; flipping it now would put core's dark text
  * on a dark background and make the page unreadable.
  */
+body.admin-suite-shell #wpbody-content h1:empty {
+  display: none;
+}
+
 body.admin-suite-shell #wpcontent {
   background: var(--suite-canvas);
 }
