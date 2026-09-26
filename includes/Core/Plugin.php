@@ -79,6 +79,7 @@ final class Plugin {
 		}
 
 		( new AdminShell() )->register();
+		( new AccountMenu() )->register();
 		( new Enqueue() )->register();
 		( new OutputBuffer() )->register();
 	}
