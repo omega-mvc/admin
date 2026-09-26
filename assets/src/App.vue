@@ -118,10 +118,11 @@ onBeforeUnmount(() => {
     Mounting on `#dashboard-widgets-wrap` puts the application where the core
     widgets already were, so only the panel itself is left to render.
 
-    What remains is a toolbar carrying the two controls the core dashboard has
-    no place for: the search palette, and a shortcut for the admin menu's own
-    collapse. It sits above the grid, inside the content column, not across the
-    whole admin.
+    What remains is a toolbar with the three controls the core dashboard has
+    nowhere to put. The admin menu's own collapse and core's "New" menu sit on
+    the left of the content column; the search palette sits on the right, because
+    it is the one that belongs next to the content rather than to the chrome.
+    None of them runs across the whole admin.
   -->
   <div class="min-h-screen bg-canvas text-ink">
     <!--
@@ -181,9 +182,14 @@ onBeforeUnmount(() => {
           </ul>
         </div>
 
+        <!--
+          Right-aligned, and the one control that still compacts: the label and
+          the shortcut hint hide at the same container width the grid drops to a
+          single column, so the bar and the dashboard fold together.
+        -->
         <button
           type="button"
-          class="flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-sm text-ink-muted hover:bg-sunken"
+          class="ml-auto flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-sm text-ink-muted hover:bg-sunken"
           @click="app.togglePalette(true)"
         >
           <Search class="size-4" aria-hidden="true" />
@@ -191,6 +197,7 @@ onBeforeUnmount(() => {
           <span class="hidden @2xl:inline">{{ __('Search…') }}</span>
           <kbd class="hidden rounded border border-line px-1 text-[10px] @2xl:inline">⌘K</kbd>
         </button>
+
       </div>
 
       <main>
