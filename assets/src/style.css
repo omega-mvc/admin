@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/*
+ * Isolation strategy: every rule is scoped to the SPA mount point so
+ * wp-admin styles and third-party plugin styles cannot leak in, and our
+ * utilities cannot leak out into the rest of wp-admin.
+ */
+@source '../src/**/*.{vue,ts}';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --suite-accent: oklch(0.51 0.22 264);
+  --suite-radius: 0.5rem;
+}
+
+.dark {
+  --suite-accent: oklch(0.65 0.19 264);
+}
+
+@theme inline {
+  --color-accent: var(--suite-accent);
+  --radius-suite: var(--suite-radius);
+}
+
+/*
+ * The typography below is scoped to the mount point, but note that Tailwind's
+ * *preflight* is NOT: `@import 'tailwindcss'` emits it into the global base
+ * layer, and this stylesheet is enqueued on the whole admin page, so it resets
+ * wp-admin and third-party markup too. `isolation: isolate` only stops our
+ * utilities leaking *out*, it does nothing about preflight leaking *in*.
+ * The v4 opt-out is to skip the preflight layer and import the two layers
+ * explicitly:
+ *   @import 'tailwindcss/theme.css' layer(theme);
+ *   @import 'tailwindcss/utilities.css' layer(utilities);
+ * Tracked in AGENTS.md; not done yet, so the resets are still live.
+ */
+#admin-suite-root {
+  isolation: isolate;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.5;
+}

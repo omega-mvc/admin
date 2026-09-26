@@ -1,0 +1,23 @@
+# The extension registers vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+# and its own bootstrap (ABSPATH, WP_DEBUG, ...) automatically, so neither is
+# listed here.
+includes:
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+	level: 8
+	phpVersion: 80100
+	paths:
+		- admin-suite.php
+		- uninstall.php
+		- includes
+	bootstrapFiles:
+		- phpstan-bootstrap.php
+	treatPhpDocTypesAsCertain: false
+	reportUnmatchedIgnoredErrors: false
+	ignoreErrors:
+		# The plugin entry file mixes namespaced and global declarations on purpose.
+		-
+			identifier: missingType.iterableValue
+		-
+			identifier: missingType.generics

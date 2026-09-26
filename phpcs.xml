@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<ruleset name="Admin Suite">
+	<description>Coding standards for the Admin Suite plugin.</description>
+
+	<file>admin-suite.php</file>
+	<file>uninstall.php</file>
+	<file>includes</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/assets/dist/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- WordPress + PHP compatibility. -->
+	<config name="testVersion" value="8.1-"/>
+	<rule ref="WordPress-Core"/>
+	<rule ref="WordPress-Extra"/>
+	<rule ref="WordPress-Docs"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="admin-suite"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="admin_suite"/>
+				<element value="ADMIN_SUITE"/>
+				<element value="AdminSuite"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		DashboardHelp rebuilds the dashboard's help tabs from core's own source
+		strings so that a non-English site gets core's translations. That requires
+		translating with the `default` textdomain, which this file is the only
+		place allowed to do. Everywhere else the sniff stays on.
+	-->
+	<rule ref="WordPress.WP.I18n.TextDomainMismatch">
+		<exclude-pattern>*/includes/Core/DashboardHelp.php</exclude-pattern>
+	</rule>
+
+	<!--
+		The plugin uses a PSR-4 layout with camelCase members, so the WordPress
+		snake_case naming sniffs are switched off deliberately. Prefixing and
+		escaping rules still apply.
+	-->
+	<rule ref="WordPress.NamingConventions.ValidFunctionName">
+		<exclude name="WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid"/>
+	</rule>
+	<rule ref="WordPress.NamingConventions.ValidVariableName">
+		<exclude name="WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase"/>
+	</rule>
+
+	<!--
+		Squiz's type parser does not understand PHPDoc generics such as
+		`\WP_REST_Request<array<string, mixed>>` and reports them as a mismatch
+		with the native `array` hint. PHPStan validates these types instead.
+	-->
+	<rule ref="Squiz.Commenting.FunctionComment">
+		<exclude name="Squiz.Commenting.FunctionComment.IncorrectTypeHint"/>
+	</rule>
+
+	<!--
+		The plugin ships its own PSR-4 layout, so the file/class naming rule that
+		assumes one class per snake_case file does not apply.
+	-->
+	<rule ref="WordPress.Files.FileName">
+		<exclude-pattern>*/includes/*</exclude-pattern>
+	</rule>
+</ruleset>

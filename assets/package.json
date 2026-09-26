@@ -1,0 +1,42 @@
+{
+	"name": "admin-suite-assets",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vue-tsc --noEmit -p tsconfig.app.json && vite build",
+		"build:only": "vite build",
+		"preview": "vite preview",
+		"type-check": "vue-tsc --noEmit -p tsconfig.app.json",
+		"lint": "eslint src --max-warnings=0",
+		"lint:fix": "eslint src --fix",
+		"format": "prettier --write \"src/**/*.{ts,vue,css}\"",
+		"format:check": "prettier --check \"src/**/*.{ts,vue,css}\"",
+		"test": "esbuild tests/layout.test.mts --bundle --format=esm --platform=node --alias:@=./src --outfile=node_modules/.tmp/layout.test.mjs --log-level=warning && node node_modules/.tmp/layout.test.mjs",
+		"test:smoke": "esbuild tests/smoke-boot.mts --bundle --format=esm --platform=node --external:linkedom --outfile=node_modules/.tmp/smoke-boot.mjs --log-level=warning && node node_modules/.tmp/smoke-boot.mjs"
+	},
+	"dependencies": {
+		"@tanstack/vue-query": "^5.62.0",
+		"lucide-vue-next": "^0.468.0",
+		"pinia": "^2.3.0",
+		"vue": "^3.5.13",
+		"vue-router": "^4.5.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.0",
+		"@tailwindcss/vite": "^4.0.0",
+		"@vitejs/plugin-vue": "^5.2.1",
+		"@vue/eslint-config-typescript": "^14.1.0",
+		"eslint": "^9.17.0",
+		"eslint-plugin-vue": "^9.32.0",
+		"globals": "^15.14.0",
+		"linkedom": "^0.18.13",
+		"prettier": "^3.4.2",
+		"tailwindcss": "^4.0.0",
+		"typescript": "~5.7.2",
+		"typescript-eslint": "^8.70.1",
+		"vite": "^6.0.5",
+		"vue-tsc": "^2.1.10"
+	}
+}

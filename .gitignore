@@ -1,0 +1,35 @@
+# Dependencies. Restored with `composer install` and `npm ci`.
+/vendor/
+/assets/node_modules/
+
+# Build output. Restored with `npm run build`, run from assets/.
+# It is 1.5 MB of minified bundle: tracking it would bury every real diff
+# under generated code. A fresh clone needs this before the SPA will render.
+/assets/dist/
+
+# Local environment files. `.env.example` is tracked on purpose, if one is
+# ever added.
+.env
+.env.*
+!.env.example
+
+# Logs and tool caches. The WordPress debug log lives outside the plugin, but
+# a stray one here should never be committed.
+/*.log
+/assets/*.log
+/assets/.vite/
+.phpunit.result.cache
+.php-cs-fixer.cache
+
+# Editor and OS cruft.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Lockfiles are deliberately NOT ignored. `composer.lock` and
+# `assets/package-lock.json` pin the exact tool versions, which is precisely
+# what you want when the goal is two machines behaving identically.
