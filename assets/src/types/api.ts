@@ -45,7 +45,6 @@ export interface SuiteSettings {
 }
 
 export interface UserPreferences {
-  theme: boolean
   sidebar: SidebarState
   density: Density
   lastRoute: string

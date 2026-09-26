@@ -25,7 +25,6 @@ final class UserPreferencesController {
 	 * Supported preference keys mapped to the callable that sanitizes them.
 	 */
 	private const SCHEMA = array(
-		'theme'     => 'rest_sanitize_boolean',
 		'sidebar'   => 'sanitize_key',
 		'density'   => 'sanitize_key',
 		'lastRoute' => 'sanitize_text_field',
@@ -43,7 +42,6 @@ final class UserPreferencesController {
 	 * Defaults.
 	 */
 	private const DEFAULTS = array(
-		'theme'     => false,
 		'sidebar'   => 'expanded',
 		'density'   => 'comfortable',
 		'lastRoute' => '/dashboard',

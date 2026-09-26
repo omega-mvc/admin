@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Moon, Sun } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 
 import CommandPalette from '@/components/CommandPalette.vue'
 import { useAppStore } from '@/stores'
@@ -16,11 +16,11 @@ const app = useAppStore()
     Mounting on `#dashboard-widgets-wrap` puts the application where the core
     widgets already were, so only the panel itself is left to render.
 
-    What remains is a toolbar carrying the two controls the core dashboard has
-    no place for: the search palette and the suite's colour scheme. It sits above
-    the grid, inside the content column, not across the whole admin.
+    What remains is a toolbar carrying the one control the core dashboard has no
+    place for: the search palette. It sits above the grid, inside the content
+    column, not across the whole admin.
   -->
-  <div class="min-h-screen bg-canvas text-ink" :class="app.darkMode ? 'dark' : ''">
+  <div class="min-h-screen bg-canvas text-ink">
     <!--
       One query context for the bar and the grid together. The bar compacts at
       the same width the grid drops to a single column, so the two move as one:
@@ -43,16 +43,6 @@ const app = useAppStore()
           <!-- `@2xl` is Tailwind's default container scale: 42rem, the same width the grid goes to two columns. -->
           <span class="hidden @2xl:inline">{{ __('Search…') }}</span>
           <kbd class="hidden rounded border border-line px-1 text-[10px] @2xl:inline">⌘K</kbd>
-        </button>
-
-        <button
-          type="button"
-          class="rounded-md bg-panel p-2 hover:bg-sunken"
-          :aria-label="app.darkMode ? __('Switch to light mode') : __('Switch to dark mode')"
-          @click="app.toggleDarkMode()"
-        >
-          <Sun v-if="app.darkMode" class="size-5" aria-hidden="true" />
-          <Moon v-else class="size-5" aria-hidden="true" />
         </button>
       </div>
 
