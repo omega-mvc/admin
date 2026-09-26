@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 import { useQuery } from '@tanstack/vue-query'
 
@@ -10,7 +10,6 @@ import { __ } from '@/utils/i18n'
 
 const props = defineProps<{
   id: string
-  adminUrl: string
 }>()
 
 /**
@@ -40,11 +39,49 @@ const html = computed(() => widget.data.value?.html ?? '')
 const hasScripts = computed(() => /<script[\s>]/i.test(html.value))
 
 /**
- * A form inside the widget posts to the current document, which is the SPA
- * shell — WordPress would never see the submission. The native dashboard still
- * handles it, so offer that as the way out.
+ * The re-entry points core publishes for the dashboard's own JavaScript.
+ *
+ * Read off `window` with a local cast rather than declared globally:
+ * `utils/i18n.ts` already declares `Window.wp` for the i18n case, and a second
+ * declaration of the same property would have to repeat its type verbatim.
  */
-const hasForm = computed(() => /<form[\s>]/i.test(html.value))
+interface DashboardGlobals {
+  quickPressLoad?: () => void
+  wp?: { communityEvents?: { init?: () => void } }
+}
+
+/**
+ * Rebind the handlers of the widgets that need JavaScript of their own.
+ *
+ * `wp-admin/js/dashboard.js` binds both of them at DOM ready, which is before
+ * this grid exists: the markup arrives from the REST endpoint and is injected
+ * here afterwards, so the selectors the bindings look for match nothing.
+ * `flush: 'post'` is what guarantees the injected nodes are already in the
+ * document by the time this runs.
+ *
+ * The two re-entry points are not alike, and the difference decides when each
+ * may run. `wp.communityEvents.init()` sets its own `initialized` flag and
+ * returns early on every later call. `quickPressLoad()` has no such flag: it
+ * binds `submit` on `#quick-press` on every call, so a second call on a form
+ * that is already bound saves the draft twice. It therefore runs only when the
+ * markup carrying that form is the one just injected, which is also the only
+ * moment the nodes it would bind to are new.
+ */
+function armCoreHandlers(): void {
+  const globals = window as unknown as DashboardGlobals
+
+  if (html.value.includes('id="quick-press"')) {
+    globals.quickPressLoad?.()
+  }
+
+  globals.wp?.communityEvents?.init?.()
+}
+
+watch(html, (value) => {
+  if (value !== '') {
+    armCoreHandlers()
+  }
+})
 </script>
 
 <template>
@@ -62,12 +99,20 @@ const hasForm = computed(() => /<form[\s>]/i.test(html.value))
 
   <template v-else>
     <!--
-      Deliberate: the trust boundary is documented above. This is the same
-      markup, from the same PHP callback, for the same user that WordPress
-      renders on the native dashboard.
+      The id and the `.inside` child reproduce the postbox that `wp_dashboard()`
+      builds, and both are load-bearing rather than decorative. The dashboard's
+      own JavaScript addresses a widget by them, and writes the reply to a save
+      into `#dashboard_quick_press .inside`.
     -->
-    <!-- eslint-disable-next-line vue/no-v-html -->
-    <div v-if="html !== ''" class="suite-native-widget text-sm" v-html="html" />
+    <div v-if="html !== ''" :id="id" class="suite-native-widget text-sm">
+      <!--
+        Deliberate: the trust boundary is documented above. This is the same
+        markup, from the same PHP callback, for the same user that WordPress
+        renders on the native dashboard.
+      -->
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="inside" v-html="html" />
+    </div>
 
     <p v-else class="py-6 text-center text-sm text-ink-muted">
       {{ __('This widget produced no output outside wp-admin.') }}
@@ -75,13 +120,6 @@ const hasForm = computed(() => /<form[\s>]/i.test(html.value))
 
     <p v-if="hasScripts" class="mt-3 rounded-md bg-sunken p-2 text-xs text-ink-muted">
       {{ __('Scripts in this widget do not run inside the dashboard, so it may be incomplete.') }}
-    </p>
-
-    <p v-if="hasForm" class="mt-2 rounded-md bg-caution-soft p-2 text-xs text-caution">
-      {{ __('This widget has a form, which WordPress can only submit from the native dashboard.') }}
-      <a :href="`${adminUrl}index.php`" class="underline">
-        {{ __('Open the native dashboard') }}
-      </a>
     </p>
   </template>
 </template>

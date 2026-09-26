@@ -174,7 +174,7 @@ function isRefreshing(panel: Panel): boolean {
               :entries="data.activity"
             />
 
-            <NativeWidgetBody v-else :id="panel.widget.id" :admin-url="data.site.adminUrl" />
+            <NativeWidgetBody v-else :id="panel.widget.id" />
           </PanelCard>
         </li>
       </ul>
