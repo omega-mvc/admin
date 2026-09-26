@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 
 import { useQueryClient } from '@tanstack/vue-query'
-import { AlertTriangle, Eye, Loader2, RotateCcw } from 'lucide-vue-next'
+import { AlertTriangle, Loader2, RotateCcw, SlidersHorizontal } from 'lucide-vue-next'
 
 import type { Panel } from '@/composables/useDashboard'
 import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
 import NativeWidgetBody from '@/components/dashboard/NativeWidgetBody.vue'
 import PanelCard from '@/components/dashboard/PanelCard.vue'
 import RecentPostsList from '@/components/dashboard/RecentPostsList.vue'
+import ScreenOptionsPanel from '@/components/dashboard/ScreenOptionsPanel.vue'
 import StatTiles from '@/components/dashboard/StatTiles.vue'
 import { isSuitePanel } from '@/components/dashboard/panels'
 import { nativeWidgetKey, useDashboard } from '@/composables/useDashboard'
@@ -21,8 +22,8 @@ import { __, _n, sprintf } from '@/utils/i18n'
  */
 const {
   query,
+  panels,
   visiblePanels,
-  hiddenPanels,
   hiddenCount,
   isDefaultLayout,
   isSaving,
@@ -36,6 +37,9 @@ const {
 } = useDashboard()
 
 const queryClient = useQueryClient()
+
+/** Open state for the Screen Options panel. */
+const showOptions = ref(false)
 
 const data = computed(() => query.data.value)
 
@@ -116,6 +120,20 @@ function isRefreshing(panel: Panel): boolean {
   )
 }
 
+/**
+ * `useDashboard` hands back the raw TanStack error, which is an object.
+ * `ScreenOptionsPanel` wants a string, because it only ever prints it.
+ */
+const saveErrorText = computed<string | null>(() => {
+  const error = saveError.value
+
+  if (!error) {
+    return null
+  }
+
+  return error instanceof Error ? error.message : String(error)
+})
+
 const saveMessage = computed(() => {
   if (saveFailed.value) {
     const error = saveError.value
@@ -190,6 +208,17 @@ const saveMessage = computed(() => {
 
         <div class="ml-auto flex items-center gap-2">
           <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
+            :aria-expanded="showOptions"
+            aria-controls="screen-options"
+            @click="showOptions = !showOptions"
+          >
+            <SlidersHorizontal class="size-3.5" aria-hidden="true" />
+            {{ __('Screen Options') }}
+          </button>
+
+          <button
             v-if="!isDefaultLayout"
             type="button"
             class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
@@ -208,6 +237,21 @@ const saveMessage = computed(() => {
           </button>
         </div>
       </div>
+
+      <ScreenOptionsPanel
+        v-if="showOptions"
+        id="screen-options"
+        class="mb-4"
+        :panels="panels"
+        :hidden-count="hiddenCount"
+        :is-saving="isSaving"
+        :is-default-layout="isDefaultLayout"
+        :save-failed="saveFailed"
+        :save-error="saveErrorText"
+        :can-edit="true"
+        @toggle="toggle"
+        @reset="reset()"
+      />
 
       <!--
         Two columns from 42rem of *content* width, three from 64rem. The widest
@@ -262,28 +306,6 @@ const saveMessage = computed(() => {
           </PanelCard>
         </li>
       </ul>
-
-      <section
-        v-if="hiddenPanels.length > 0"
-        class="mt-5 rounded-lg border border-dashed border-line p-3"
-      >
-        <h2 class="text-xs font-medium uppercase tracking-wide text-ink-muted">
-          {{ __('Hidden panels') }}
-        </h2>
-
-        <ul class="mt-2 flex flex-wrap gap-2">
-          <li v-for="panel in hiddenPanels" :key="panel.widget.id">
-            <button
-              type="button"
-              class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
-              @click="toggle(panel.widget.id)"
-            >
-              <Eye class="size-3.5" aria-hidden="true" />
-              {{ panel.widget.title }}
-            </button>
-          </li>
-        </ul>
-      </section>
     </template>
   </section>
 </template>
