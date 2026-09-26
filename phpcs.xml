@@ -39,16 +39,6 @@
 	</rule>
 
 	<!--
-		DashboardHelp rebuilds the dashboard's help tabs from core's own source
-		strings so that a non-English site gets core's translations. That requires
-		translating with the `default` textdomain, which this file is the only
-		place allowed to do. Everywhere else the sniff stays on.
-	-->
-	<rule ref="WordPress.WP.I18n.TextDomainMismatch">
-		<exclude-pattern>*/includes/Core/DashboardHelp.php</exclude-pattern>
-	</rule>
-
-	<!--
 		The plugin uses a PSR-4 layout with camelCase members, so the WordPress
 		snake_case naming sniffs are switched off deliberately. Prefixing and
 		escaping rules still apply.

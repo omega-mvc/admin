@@ -1,9 +1,10 @@
 @import 'tailwindcss';
 
 /*
- * Isolation strategy: every rule is scoped to the SPA mount point so
- * wp-admin styles and third-party plugin styles cannot leak in, and our
- * utilities cannot leak out into the rest of wp-admin.
+ * Only the mount point is styled from here. The suite now renders the
+ * dashboard itself, so this stylesheet is enqueued on a page whose remaining
+ * markup is wp-admin's own chrome, and every rule below is scoped so the
+ * utilities cannot leak out into it.
  */
 @source '../src/**/*.{vue,ts}';
 
@@ -24,18 +25,27 @@
 }
 
 /*
- * The typography below is scoped to the mount point, but note that Tailwind's
- * *preflight* is NOT: `@import 'tailwindcss'` emits it into the global base
- * layer, and this stylesheet is enqueued on the whole admin page, so it resets
- * wp-admin and third-party markup too. `isolation: isolate` only stops our
- * utilities leaking *out*, it does nothing about preflight leaking *in*.
- * The v4 opt-out is to skip the preflight layer and import the two layers
- * explicitly:
+ * The typography below is scoped to the mount point, but Tailwind's *preflight*
+ * is not: `@import 'tailwindcss'` emits it into the global base layer, and this
+ * stylesheet is enqueued on the whole admin page. `isolation: isolate` only
+ * stops our utilities leaking *out*, it does nothing about preflight leaking
+ * *in*.
+ *
+ * This used to matter much more. The suite was a separate page, so preflight
+ * reset the chrome of whichever wp-admin page happened to be underneath it, and
+ * on third-party screens it reset their markup outright. Now the only markup
+ * below the mount point is the dashboard, which this application replaces
+ * wholesale, so there is nothing left for preflight to damage. It does still
+ * touch the admin bar, the admin menu and the `<h1>` above us, but core reaches
+ * those through id and class selectors, which outrank an element selector, so in
+ * practice core wins.
+ *
+ * If that ever stops being true, the v4 opt-out is to skip the preflight layer
+ * and import the two layers explicitly:
  *   @import 'tailwindcss/theme.css' layer(theme);
  *   @import 'tailwindcss/utilities.css' layer(utilities);
- * Tracked in AGENTS.md; not done yet, so the resets are still live.
  */
-#admin-suite-root {
+#dashboard-widgets-wrap {
   isolation: isolate;
   font-family:
     ui-sans-serif,

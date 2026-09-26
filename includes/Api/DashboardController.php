@@ -9,13 +9,13 @@ declare( strict_types = 1 );
 
 namespace AdminSuite\Api;
 
-use AdminSuite\Core\DashboardHelp;
+use AdminSuite\Core\AdminContext;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Exposes GET /admin-suite/v1/dashboard, GET .../dashboard/help,
- * GET .../dashboard/widget/<id> and POST .../dashboard.
+ * Exposes GET /admin-suite/v1/dashboard, GET .../dashboard/widget/<id>
+ * and POST .../dashboard.
  *
  * The grid is a mix of two kinds of panel: native widgets registered through
  * wp_add_dashboard_widget(), and panels the SPA renders itself. Both kinds live
@@ -23,6 +23,19 @@ defined( 'ABSPATH' ) || exit;
  * ids are whitelisted server-side exactly like native ones.
  */
 final class DashboardController {
+
+	/**
+	 * The wp-admin area the current response describes.
+	 *
+	 * Multisite has three of them and each keeps its widgets under a different
+	 * `$wp_meta_boxes` key, so the area has to be known before any box is read.
+	 * `is_network_admin()` cannot answer it here — it reads the current screen
+	 * first, and this class is about to replace that screen — so the value is
+	 * taken from the request and validated by AdminContext.
+	 *
+	 * @var string One of AdminContext::SITE, AdminContext::NETWORK, AdminContext::USER.
+	 */
+	private string $admin = AdminContext::SITE;
 
 	/**
 	 * User meta key holding the ordered widget layout.
@@ -59,6 +72,7 @@ final class DashboardController {
 					'methods'             => 'GET',
 					'callback'            => array( $this, 'getDashboard' ),
 					'permission_callback' => array( $this, 'canRead' ),
+					'args'                => $this->adminArgs(),
 				),
 				array(
 					'methods'             => 'POST',
@@ -75,41 +89,46 @@ final class DashboardController {
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'getWidget' ),
 				'permission_callback' => array( $this, 'canRead' ),
-				'args'                => array(
-					'id' => array(
-						'description'       => __( 'Native dashboard widget id.', 'admin-suite' ),
-						'type'              => 'string',
-						'required'          => true,
-						'sanitize_callback' => 'sanitize_key',
-					),
+				'args'                => array_merge(
+					$this->adminArgs(),
+					array(
+						'id' => array(
+							'description'       => __( 'Native dashboard widget id.', 'admin-suite' ),
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_key',
+						),
+					)
 				),
-			)
-		);
-
-		register_rest_route(
-			ADMIN_SUITE_REST_NAMESPACE,
-			'/dashboard/help',
-			array(
-				'methods'             => 'GET',
-				'callback'            => array( $this, 'getHelp' ),
-				'permission_callback' => array( $this, 'canRead' ),
 			)
 		);
 	}
 
 	/**
-	 * Contextual help tabs, rebuilt from core's own strings.
+	 * The `admin` query argument, shared by every route that reads meta boxes.
 	 *
-	 * Kept off `GET /dashboard` deliberately: the help markup is a few kilobytes
-	 * of translated HTML that most visits never open, so the SPA fetches it when
-	 * the Help panel is first expanded.
+	 * The SPA sends the area it was loaded in, because a REST request cannot
+	 * work it out for itself: `WP_NETWORK_ADMIN` is only defined by
+	 * `wp-admin/admin.php`, which the REST bootstrap never runs, and
+	 * `is_network_admin()` reads the current screen first — a screen this very
+	 * controller is about to replace. Anything the request does not say falls
+	 * back to the site admin, the only area a single site has.
+	 *
+	 * @return array<string, array<string, mixed>>
 	 */
-	public function getHelp(): \WP_REST_Response {
-		$response = rest_ensure_response( DashboardHelp::payload() );
-
-		$response->header( 'Cache-Control', 'no-store, private' );
-
-		return $response;
+	private function adminArgs(): array {
+		return array(
+			'admin' => array(
+				'description'       => __( 'The wp-admin area to read dashboard widgets from.', 'admin-suite' ),
+				'type'              => 'string',
+				'enum'              => AdminContext::all(),
+				'default'           => AdminContext::SITE,
+				// See MenuController::registerRoutes(): `enum` is only enforced
+				// when validate_callback is explicitly set.
+				'validate_callback' => 'rest_validate_request_arg',
+				'sanitize_callback' => 'sanitize_key',
+			),
+		);
 	}
 
 	/**
@@ -129,8 +148,13 @@ final class DashboardController {
 
 	/**
 	 * Build the whole dashboard payload.
+	 *
+	 * @param \WP_REST_Request<array<string, mixed>> $request Incoming request.
+	 * @return \WP_REST_Response
 	 */
-	public function getDashboard(): \WP_REST_Response {
+	public function getDashboard( \WP_REST_Request $request ): \WP_REST_Response {
+		$this->admin = AdminContext::fromRequest( $request );
+
 		$widgets = $this->allWidgets();
 
 		$response = rest_ensure_response(
@@ -155,6 +179,8 @@ final class DashboardController {
 	 * @param \WP_REST_Request<array<string, mixed>> $request Incoming request.
 	 */
 	public function getWidget( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$this->admin = AdminContext::fromRequest( $request );
+
 		$id = $request->get_param( 'id' );
 		$id = is_string( $id ) ? $id : '';
 
@@ -248,7 +274,7 @@ final class DashboardController {
 		return array(
 			'name'     => (string) get_bloginfo( 'name' ),
 			'url'      => home_url( '/' ),
-			'adminUrl' => admin_url( '/' ),
+			'adminUrl' => esc_url_raw( AdminContext::baseUrl( $this->admin ) ),
 			'language' => (string) get_bloginfo( 'language' ),
 			'charset'  => (string) get_bloginfo( 'charset' ),
 			'timezone' => (string) wp_timezone_string(),
@@ -510,10 +536,20 @@ final class DashboardController {
 
 		$previous = get_current_screen();
 
-		set_current_screen( 'dashboard' );
+		// The screen has to match the area, not just exist: wp_dashboard_setup()
+		// picks its widget set with is_network_admin() and is_blog_admin(), and
+		// both read the current screen. Installing 'dashboard-network' is what
+		// makes them answer as they would in /wp-admin/network/, which swaps the
+		// site "At a Glance" for network_dashboard_right_now and drops Site
+		// Health and Activity entirely.
+		set_current_screen( AdminContext::screenId( $this->admin ) );
 
 		try {
-			wp_dashboard_setup();
+			$setup = AdminContext::dashboardSetup();
+
+			if ( function_exists( $setup ) ) {
+				call_user_func( $setup );
+			}
 
 			$widgets = array();
 
@@ -531,6 +567,9 @@ final class DashboardController {
 		} catch ( \Throwable $e ) {
 			$widgets = array();
 		} finally {
+			// Restoring is not optional: is_network_admin() consults
+			// $GLOBALS['current_screen'] first, so leaving our fake in place would
+			// make the rest of the request believe it is in the network admin.
 			set_current_screen( $previous instanceof \WP_Screen ? $previous->id : 'front' );
 		}
 
@@ -604,8 +643,14 @@ final class DashboardController {
 	private function dashboardBoxes(): array {
 		global $wp_meta_boxes;
 
-		return isset( $wp_meta_boxes['dashboard'] ) && is_array( $wp_meta_boxes['dashboard'] )
-			? $wp_meta_boxes['dashboard']
+		// add_meta_box() keys $wp_meta_boxes by screen id, and the three admin
+		// areas have different ones: 'dashboard', 'dashboard-network' and
+		// 'dashboard-user'. Reading 'dashboard' unconditionally would make the
+		// network admin show the site dashboard's widgets.
+		$screen = AdminContext::screenId( $this->admin );
+
+		return isset( $wp_meta_boxes[ $screen ] ) && is_array( $wp_meta_boxes[ $screen ] )
+			? $wp_meta_boxes[ $screen ]
 			: array();
 	}
 

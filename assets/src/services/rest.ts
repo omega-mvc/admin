@@ -1,7 +1,6 @@
 import type { Bootstrap } from '@/types/bootstrap'
 import type {
   DashboardResponse,
-  HelpPayload,
   MenuResponse,
   NativeWidgetResponse,
   SearchResponse,
@@ -83,9 +82,37 @@ async function request<T>(path: string, init: RequestInit = {}, json = true): Pr
  */
 const withSignal = (signal?: AbortSignal): RequestInit => (signal ? { signal } : {})
 
+/**
+ * The admin area this page was served from, as a ready-to-use query fragment.
+ *
+ * PHP cannot infer it during a REST request: the `WP_NETWORK_ADMIN` and
+ * `WP_USER_ADMIN` constants are only defined by `wp-admin/admin.php`, and
+ * `is_network_admin()` / `is_user_admin()` read the current screen first, which
+ * a REST request does not have. So the area travels with the request instead,
+ * read from the same bootstrap the router base comes from. Absent bootstrap
+ * means an empty fragment, and the server falls back to the site admin.
+ */
+const adminParam = (): string | undefined => {
+  const admin = window.ADMIN_SUITE_BOOTSTRAP?.admin
+
+  return admin ? `admin=${encodeURIComponent(admin)}` : undefined
+}
+
+/**
+ * Join query fragments onto a path, omitting the `?` when there are none.
+ */
+const withQuery = (path: string, ...params: Array<string | undefined>): string => {
+  const search = params.filter(Boolean).join('&')
+
+  return search ? `${path}?${search}` : path
+}
+
 export const rest = {
   menu: (context: 'view' | 'edit' = 'view', signal?: AbortSignal) =>
-    request<MenuResponse>(`menu?context=${context}`, withSignal(signal)),
+    request<MenuResponse>(
+      withQuery('menu', `context=${context}`, adminParam()),
+      withSignal(signal),
+    ),
 
   search: (q: string, signal?: AbortSignal) =>
     request<SearchResponse>(`search?q=${encodeURIComponent(q)}`, withSignal(signal)),
@@ -111,14 +138,18 @@ export const rest = {
    * The whole dashboard in one round trip: site info, counters, recent posts,
    * activity, the panel inventory and the saved layout.
    */
-  dashboard: (signal?: AbortSignal) => request<DashboardResponse>('dashboard', withSignal(signal)),
+  dashboard: (signal?: AbortSignal) =>
+    request<DashboardResponse>(withQuery('dashboard', adminParam()), withSignal(signal)),
 
   /**
    * The rendered HTML of one native widget. SPA panels have no server-side
    * markup and answer 409 `admin_suite_widget_is_builtin`.
    */
   nativeWidget: (id: string, signal?: AbortSignal) =>
-    request<NativeWidgetResponse>(`dashboard/widget/${encodeURIComponent(id)}`, withSignal(signal)),
+    request<NativeWidgetResponse>(
+      withQuery(`dashboard/widget/${encodeURIComponent(id)}`, adminParam()),
+      withSignal(signal),
+    ),
 
   /**
    * Persist panel order and visibility. The response is the layout the server
@@ -130,13 +161,4 @@ export const rest = {
       method: 'POST',
       body: JSON.stringify({ layout }),
     }),
-
-  /**
-   * The contextual help tabs, as WordPress's own strings.
-   *
-   * Kept out of the `dashboard` payload on purpose: this is a few kilobytes of
-   * translated HTML that most visits never open, so the SPA fetches it the
-   * first time the Help panel is expanded rather than on every page load.
-   */
-  dashboardHelp: (signal?: AbortSignal) => request<HelpPayload>('dashboard/help', withSignal(signal)),
 }

@@ -13,6 +13,7 @@ import StatTiles from '@/components/dashboard/StatTiles.vue'
 import { isSuitePanel } from '@/components/dashboard/panels'
 import { nativeWidgetKey, useDashboard } from '@/composables/useDashboard'
 import { RestError } from '@/services/rest'
+import { __, _n, sprintf } from '@/utils/i18n'
 
 /*
  * Destructured rather than namespaced behind `dashboard.`: the refs are then
@@ -120,28 +121,28 @@ const saveMessage = computed(() => {
     const error = saveError.value
 
     if (error instanceof RestError && error.isAuthError) {
-      return 'Session expired — reload the page, then try again.'
+      return __('Session expired — reload the page, then try again.')
     }
 
-    return 'Layout not saved — the previous layout was restored.'
+    return __('Layout not saved — the previous layout was restored.')
   }
 
   if (isSaving.value) {
-    return 'Saving layout…'
+    return __('Saving layout…')
   }
 
   if (hiddenCount.value > 0) {
-    return `${hiddenCount.value} panel(s) hidden`
+    return sprintf(_n('%s panel hidden', '%s panels hidden', hiddenCount.value), hiddenCount.value)
   }
 
-  return 'Layout saved'
+  return __('Layout saved')
 })
 </script>
 
 <template>
   <section>
     <header class="mb-5">
-      <h1 class="text-xl font-semibold">Dashboard</h1>
+      <h1 class="text-xl font-semibold">{{ __('Dashboard') }}</h1>
 
       <p v-if="data" class="mt-1 text-sm text-slate-500 dark:text-slate-400">
         <a :href="data.site.url" class="hover:text-accent">{{ data.site.name }}</a>
@@ -156,21 +157,21 @@ const saveMessage = computed(() => {
 
     <div v-if="query.isLoading.value" class="flex items-center gap-2 py-16 text-sm text-slate-500">
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />
-      Loading dashboard…
+      {{ __('Loading dashboard…') }}
     </div>
 
     <div
       v-else-if="query.isError.value"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
     >
-      <p class="font-medium">The dashboard could not be loaded.</p>
+      <p class="font-medium">{{ __('The dashboard could not be loaded.') }}</p>
       <p class="mt-1">{{ query.error.value?.message }}</p>
       <button
         type="button"
         class="mt-3 rounded-md border border-current px-3 py-1.5 text-xs font-medium"
         @click="query.refetch()"
       >
-        Try again
+        {{ __('Try again') }}
       </button>
     </div>
 
@@ -197,7 +198,7 @@ const saveMessage = computed(() => {
             @click="reset()"
           >
             <RotateCcw class="size-3.5" aria-hidden="true" />
-            Reset layout
+            {{ __('Reset layout') }}
           </button>
 
           <button
@@ -205,7 +206,7 @@ const saveMessage = computed(() => {
             class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             @click="query.refetch()"
           >
-            Refresh
+            {{ __('Refresh') }}
           </button>
         </div>
       </div>
@@ -269,7 +270,7 @@ const saveMessage = computed(() => {
         class="mt-5 rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700"
       >
         <h2 class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Hidden panels
+          {{ __('Hidden panels') }}
         </h2>
 
         <ul class="mt-2 flex flex-wrap gap-2">

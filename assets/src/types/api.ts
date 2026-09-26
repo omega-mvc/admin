@@ -125,22 +125,3 @@ export interface NativeWidgetResponse {
   title: string
   html: string
 }
-
-/**
- * One contextual help tab, as WordPress would render it.
- *
- * `content` and `sidebar` are HTML, already translated server-side with the
- * `default` textdomain so a non-English site gets core's own strings. They are
- * only ever set by `Core\DashboardHelp::payload()`, which is the other end of
- * this contract.
- */
-export interface HelpTab {
-  id: string
-  title: string
-  content: string
-}
-
-export interface HelpPayload {
-  tabs: HelpTab[]
-  sidebar: string
-}

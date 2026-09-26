@@ -1,10 +1,12 @@
 /**
- * Boot smoke test: does the built bundle actually mount into #admin-suite-root?
+ * Boot smoke test: does the built bundle actually mount into
+ * #dashboard-widgets-wrap?
  *
- * The failure this exists to catch is silent: a classic <script> tag pointed at
- * an ESM bundle throws a SyntaxError before a single line runs, so the page
- * renders an empty div and the REST endpoints still answer 200. Nothing else in
- * the suite notices.
+ * That is the element `wp-admin/index.php` prints around the core dashboard
+ * widgets, and the one the suite takes over. The failure this exists to catch is
+ * silent: a classic <script> tag pointed at an ESM bundle throws a SyntaxError
+ * before a single line runs, so the page renders an empty div and the REST
+ * endpoints still answer 200. Nothing else in the suite notices.
  *
  * Runs the real `dist/` output under Node against a linkedom DOM, then asserts
  * the mount point gained children.
@@ -14,10 +16,10 @@ import * as linkedom from 'linkedom'
 import { parseHTML } from 'linkedom'
 
 const { window, document } = parseHTML(
-  `<!doctype html><html><head></head><body><div id="admin-suite-root"></div></body></html>`,
+  `<!doctype html><html><head></head><body><div id="dashboard-widgets-wrap"></div></body></html>`,
 ) as unknown as { window: Record<string, unknown>; document: Document }
 
-const href = 'http://localhost:8080/wp-admin/admin.php?page=admin-suite#/dashboard'
+const href = 'http://localhost:8080/wp-admin/index.php#/dashboard'
 
 // linkedom does not synthesise `location` for a document parsed from a string,
 // and vue-router reads `location.host` while building the history base. This
@@ -78,15 +80,51 @@ define('cancelAnimationFrame', (id: number): void => clearTimeout(id))
 
 // The plugin injects this via `wp_add_inline_script( ..., 'before' )`. Without
 // it `main.ts` throws on purpose, which is a legitimate failure to surface.
+//
+// `locale` is deliberately the underscored form WordPress actually stores
+// (`determine_locale()`), not the BCP 47 form `Intl` accepts. `Intl` throws a
+// RangeError on `it_IT`, so if the SPA hands the bootstrap value straight to a
+// formatter the bundle dies at import — on every Italian install, and with a
+// stack trace pointing at `Intl` rather than at the conversion that should have
+// happened. This stub is the only thing between that regression and a dashboard
+// nobody can open in their own language.
 window.ADMIN_SUITE_BOOTSTRAP = {
   restUrl: 'http://localhost:8080/wp-json/admin-suite/v1/',
   nonce: 'smoke',
   homeUrl: 'http://localhost:8080/wp-admin/',
+  admin: 'site',
+  suiteUrl: 'http://localhost:8080/wp-admin/index.php',
   canManage: true,
   canEdit: true,
   canUpload: true,
   siteName: 'WordPress',
+  locale: 'it_IT',
   pluginVer: '0.1.0',
+}
+
+/**
+ * Stand-in for the catalogue `wp-i18n` provides, which `Enqueue` declares as a
+ * dependency and `wp_set_script_translations()` fills in.
+ *
+ * Installed here so the boot test exercises the same global a browser has. The
+ * assertion that matters is further down: drop `wp-i18n` from `SCRIPT_DEPS` and
+ * the wrapper degrades to English *and says so*, and that warning is what turns
+ * a silent regression into a red test.
+ */
+let i18nWarnings = 0
+const realWarn = console.warn.bind(console)
+console.warn = (...args: unknown[]): void => {
+  i18nWarnings += 1
+  realWarn(...args)
+}
+window.wp = {
+  i18n: {
+    __: (text: string): string => text,
+    _x: (text: string): string => text,
+    _n: (single: string, plural: string, count: number): string => (count === 1 ? single : plural),
+    _nx: (single: string, plural: string, count: number): string => (count === 1 ? single : plural),
+    isRTL: (): boolean => false,
+  },
 }
 
 /**
@@ -173,8 +211,17 @@ console.error = (...args: unknown[]) => {
   realError(...args)
 }
 
-const root = document.getElementById('admin-suite-root')
-if (!root) throw new Error('harness setup failed: no #admin-suite-root')
+/*
+ * A `type="module"` script is deferred by definition, so in a browser the
+ * document is always fully parsed by the time the bundle evaluates and
+ * `document.readyState` is never 'loading'. linkedom does not synthesise the
+ * property, which would leave the bundle waiting on a DOMContentLoaded that
+ * never arrives. Pin it, so the harness exercises the path a browser takes.
+ */
+Object.defineProperty(document, 'readyState', { value: 'complete', configurable: true })
+
+const root = document.getElementById('dashboard-widgets-wrap')
+if (!root) throw new Error('harness setup failed: no #dashboard-widgets-wrap')
 
 // Node exposes `process`, browsers do not. Vue's ESM build branches on
 // `process.env.NODE_ENV`, and Vite does not inline that constant in library
@@ -206,6 +253,7 @@ console.log(`  child elements : ${children}`)
 console.log(`  innerHTML len  : ${html.length}`)
 console.log(`  fetch calls    : ${fetchCalls}`)
 console.log(`  render failures: ${renderFailures.length}`)
+console.log(`  i18n warnings  : ${i18nWarnings}`)
 
 if (children === 0 || html.length < 50) {
   console.error('  FAIL: mount point is empty — the app did not mount')
@@ -219,6 +267,11 @@ if (errors.length > 0) {
 
 if (renderFailures.length > 0) {
   console.error('  FAIL: a component threw during render (see output above)')
+  nodeProcess.exit(1)
+}
+
+if (i18nWarnings > 0) {
+  console.error('  FAIL: the i18n wrapper fell back to English — window.wp.i18n never arrived')
   nodeProcess.exit(1)
 }
 

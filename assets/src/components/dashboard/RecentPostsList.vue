@@ -3,8 +3,41 @@ import { FileText } from 'lucide-vue-next'
 
 import type { RecentPost } from '@/types/api'
 import { absoluteTime, relativeTime } from '@/utils/format'
+import { __, _x, sprintf } from '@/utils/i18n'
 
 defineProps<{ posts: RecentPost[] }>()
+
+/**
+ * The human label for a post status.
+ *
+ * A status arrives as a slug, so showing it with the dash swapped for a space
+ * yields `in-review` and `auto-draft`: English-ish fragments no translator ever
+ * saw, and `in-review` is not what WordPress calls it. `_x` with a `post status`
+ * context is the same disambiguation core uses, because "Published" and "Draft"
+ * are ordinary words that mean other things elsewhere in the admin.
+ */
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'publish':
+      return _x('Published', 'post status')
+    case 'future':
+      return _x('Scheduled', 'post status')
+    case 'draft':
+      return _x('Draft', 'post status')
+    case 'pending':
+      return _x('Pending Review', 'post status')
+    case 'private':
+      return _x('Private', 'post status')
+    case 'trash':
+      return _x('Trash', 'post status')
+    case 'auto-draft':
+      return _x('Auto Draft', 'post status')
+    case 'inherit':
+      return _x('Inherit', 'post status')
+    default:
+      return status.replace(/-/g, ' ')
+  }
+}
 
 /** Status badge colours, keyed by post status. */
 const badge: Record<string, string> = {
@@ -42,7 +75,7 @@ const badge: Record<string, string> = {
           class="block truncate text-sm font-medium hover:text-accent"
           :title="post.title"
         >
-          {{ post.title === '' ? `Post #${post.id}` : post.title }}
+          {{ post.title === '' ? sprintf(__('Post #%s'), post.id) : post.title }}
         </a>
 
         <p
@@ -55,7 +88,7 @@ const badge: Record<string, string> = {
               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
             "
           >
-            {{ post.status.replace('-', ' ') }}
+            {{ statusLabel(post.status) }}
           </span>
 
           <span class="truncate">{{ post.author }}</span>
@@ -68,5 +101,7 @@ const badge: Record<string, string> = {
     </li>
   </ul>
 
-  <p v-else class="py-4 text-center text-sm text-slate-500 dark:text-slate-400">No posts yet.</p>
+  <p v-else class="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+    {{ __('No posts yet.') }}
+  </p>
 </template>

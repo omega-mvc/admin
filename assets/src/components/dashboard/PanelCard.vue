@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ChevronUp, ChevronDown, EyeOff, RefreshCw, GripVertical } from 'lucide-vue-next'
 
+import { __, sprintf } from '@/utils/i18n'
+
 /**
  * Card chrome for one dashboard panel: heading, reorder controls and the slot
  * the panel body goes into.
@@ -54,7 +56,7 @@ const buttonClass =
           v-if="props.refreshable"
           type="button"
           :class="buttonClass"
-          :aria-label="`Refresh ${props.title}`"
+          :aria-label="sprintf(__('Refresh %s'), props.title)"
           :disabled="props.refreshing"
           @click="emit('refresh')"
         >
@@ -68,7 +70,7 @@ const buttonClass =
         <button
           type="button"
           :class="buttonClass"
-          :aria-label="`Move ${props.title} up`"
+          :aria-label="sprintf(__('Move %s up'), props.title)"
           :disabled="props.upDisabled"
           @click="emit('move', -1)"
         >
@@ -78,7 +80,7 @@ const buttonClass =
         <button
           type="button"
           :class="buttonClass"
-          :aria-label="`Move ${props.title} down`"
+          :aria-label="sprintf(__('Move %s down'), props.title)"
           :disabled="props.downDisabled"
           @click="emit('move', 1)"
         >
@@ -88,7 +90,7 @@ const buttonClass =
         <button
           type="button"
           :class="buttonClass"
-          :aria-label="`Hide ${props.title}`"
+          :aria-label="sprintf(__('Hide %s'), props.title)"
           @click="emit('toggle')"
         >
           <EyeOff class="size-4" aria-hidden="true" />

@@ -27,6 +27,27 @@ final class Enqueue {
 	private const HANDLE = 'admin-suite-app';
 
 	/**
+	 * Text domain of the plugin. Must match the `Text Domain` header.
+	 */
+	private const TEXT_DOMAIN = 'admin-suite';
+
+	/**
+	 * Handle the SPA depends on.
+	 *
+	 * `wp-i18n` is registered by core and exposes `window.wp.i18n`, whose
+	 * `__` / `_x` / `_n` / `_nx` take the same arguments as their PHP
+	 * counterparts. Depending on core's copy rather than shipping
+	 * `@wordpress/i18n` from npm means the SPA uses WordPress's own
+	 * localisation instead of a parallel implementation of it.
+	 */
+	private const SCRIPT_DEPS = array( 'wp-i18n' );
+
+	/**
+	 * Absolute path of the translation catalogues.
+	 */
+	private const LANG_DIR = 'languages';
+
+	/**
 	 * Register the enqueue hooks.
 	 */
 	public function register(): void {
@@ -99,10 +120,12 @@ final class Enqueue {
 			wp_enqueue_script(
 				self::HANDLE,
 				self::DEV_SERVER . '/assets/src/main.ts',
-				array(),
+				self::SCRIPT_DEPS,
 				ADMIN_SUITE_VERSION,
 				true
 			);
+
+			$this->prepareScript();
 
 			return;
 		}
@@ -125,16 +148,35 @@ final class Enqueue {
 		wp_enqueue_script(
 			self::HANDLE,
 			$baseUrl . 'assets/dist/' . $entry['file'],
-			array(),
+			self::SCRIPT_DEPS,
 			ADMIN_SUITE_VERSION,
 			true
 		);
 
+		$this->prepareScript();
+	}
+
+	/**
+	 * Attach the bootstrap payload and the translation catalogue to the handle.
+	 *
+	 * Both belong on every build, not only the production one: the bootstrap is
+	 * read by the very first line of the module, so a dev-server build that
+	 * skipped it would throw before rendering anything.
+	 */
+	private function prepareScript(): void {
 		wp_add_inline_script(
 			self::HANDLE,
 			'window.ADMIN_SUITE_BOOTSTRAP = ' . wp_json_encode( $this->bootstrapData() ) . ';',
 			'before'
 		);
+
+		// The path is required: the handle belongs to a plugin rather than to
+		// wp-content's core bundle, so WordPress cannot derive where to look
+		// for the JSON catalogues. It loads
+		// languages/admin-suite-{locale}-{handle}.json and falls back to the
+		// untranslated source strings when a locale has no file, which is why
+		// an empty languages/ directory is not an error.
+		wp_set_script_translations( self::HANDLE, self::TEXT_DOMAIN, ADMIN_SUITE_DIR . self::LANG_DIR );
 	}
 
 	/**
@@ -250,17 +292,39 @@ final class Enqueue {
 	/**
 	 * Data handed to the SPA on boot (REST root, nonce, capabilities).
 	 *
+	 * `admin` and `suiteUrl` are the multisite part. The suite takes over the
+	 * dashboard, and each admin area puts its dashboard at a different path
+	 * (`/wp-admin/index.php`, `/wp-admin/network/index.php`,
+	 * `/wp-admin/user/index.php`). detect() is trustworthy here, unlike in a REST
+	 * request, because this only runs while rendering a real screen, where both
+	 * the WP_NETWORK_ADMIN / WP_USER_ADMIN constants and the current screen
+	 * are set. The SPA uses both values as the base of its REST calls and of
+	 * its hash router, so a hardcoded path would send the network admin's
+	 * requests to the site admin.
+	 *
+	 * `locale` is `determine_locale()` rather than `get_locale()`: inside wp-admin
+	 * that is the *user's* locale, and it is the very same function
+	 * `wp_set_script_translations()` resolves the JSON catalogue against, so the
+	 * strings the SPA looks up and the locale its `Intl` formatters use cannot
+	 * end up describing two different languages.
+	 *
 	 * @return array<string, mixed>
 	 */
 	private function bootstrapData(): array {
+		$admin = AdminContext::detect();
+		$base  = AdminContext::baseUrl( $admin );
+
 		return array(
 			'restUrl'   => esc_url_raw( rest_url( 'admin-suite/v1/' ) ),
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
-			'homeUrl'   => esc_url_raw( admin_url() ),
+			'homeUrl'   => esc_url_raw( $base ),
+			'admin'     => $admin,
+			'suiteUrl'  => esc_url_raw( $base . 'index.php' ),
 			'canManage' => current_user_can( 'manage_options' ),
 			'canEdit'   => current_user_can( 'edit_posts' ),
 			'canUpload' => current_user_can( 'upload_files' ),
 			'siteName'  => get_bloginfo( 'name' ),
+			'locale'    => determine_locale(),
 			'pluginVer' => ADMIN_SUITE_VERSION,
 		);
 	}

@@ -15,6 +15,7 @@
 import { Loader2, RotateCcw } from 'lucide-vue-next'
 
 import type { Panel } from '@/composables/useDashboard'
+import { __, _n, sprintf } from '@/utils/i18n'
 
 defineProps<{
   panels: Panel[]
@@ -38,11 +39,11 @@ const emit = defineEmits<{
   >
     <fieldset class="min-w-0">
       <legend class="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-        Dashboard panels
+        {{ __('Dashboard panels') }}
       </legend>
 
       <p class="mb-3 text-slate-600 dark:text-slate-400">
-        Tick a panel to show it on the dashboard. Changes save automatically.
+        {{ __('Tick a panel to show it on the dashboard. Changes save automatically.') }}
       </p>
 
       <ul class="grid gap-x-4 gap-y-1.5 @xs:grid-cols-2">
@@ -59,28 +60,32 @@ const emit = defineEmits<{
               :disabled="!canEdit || isSaving"
               @change="emit('toggle', panel.widget.id)"
             />
-            <span class="truncate text-slate-700 dark:text-slate-300">{{ panel.widget.title }}</span>
+            <span class="truncate text-slate-700 dark:text-slate-300">{{
+              panel.widget.title
+            }}</span>
           </label>
         </li>
       </ul>
     </fieldset>
 
-    <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-800">
-      <p
-        class="text-xs text-slate-500 dark:text-slate-400"
-        aria-live="polite"
-        role="status"
-      >
+    <div
+      class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-800"
+    >
+      <p class="text-xs text-slate-500 dark:text-slate-400" aria-live="polite" role="status">
         <template v-if="saveFailed">
-          <span class="text-rose-600 dark:text-rose-400">Not saved: {{ saveError }}</span>
+          <span class="text-rose-600 dark:text-rose-400">{{
+            sprintf(__('Not saved: %s'), saveError ?? '')
+          }}</span>
         </template>
         <template v-else-if="isSaving">
           <span class="inline-flex items-center gap-1.5"
-            ><Loader2 class="size-3 animate-spin" aria-hidden="true" /> Saving…</span
+            ><Loader2 class="size-3 animate-spin" aria-hidden="true" /> {{ __('Saving…') }}</span
           >
         </template>
-        <template v-else-if="hiddenCount > 0"> {{ hiddenCount }} hidden </template>
-        <template v-else> All panels shown. </template>
+        <template v-else-if="hiddenCount > 0">
+          {{ sprintf(_n('%s panel hidden', '%s panels hidden', hiddenCount), hiddenCount) }}
+        </template>
+        <template v-else> {{ __('All panels shown.') }} </template>
       </p>
 
       <button
@@ -90,7 +95,7 @@ const emit = defineEmits<{
         @click="emit('reset')"
       >
         <RotateCcw class="size-3" aria-hidden="true" />
-        Reset layout
+        {{ __('Reset layout') }}
       </button>
     </div>
   </div>

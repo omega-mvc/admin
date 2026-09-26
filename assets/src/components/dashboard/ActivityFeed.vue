@@ -3,6 +3,7 @@ import { MessageSquare, PencilLine } from 'lucide-vue-next'
 
 import type { ActivityEntry } from '@/types/api'
 import { absoluteTime, relativeTime } from '@/utils/format'
+import { __ } from '@/utils/i18n'
 
 defineProps<{ entries: ActivityEntry[] }>()
 </script>
@@ -22,7 +23,7 @@ defineProps<{ entries: ActivityEntry[] }>()
           <span v-if="entry.actor" class="font-medium">{{ entry.actor }}</span>
           <span v-if="entry.summary"> {{ entry.summary }}</span>
           <span v-if="!entry.actor && !entry.summary" class="text-slate-500">
-            Recorded activity
+            {{ __('Recorded activity') }}
           </span>
         </p>
 
@@ -40,6 +41,6 @@ defineProps<{ entries: ActivityEntry[] }>()
   </ul>
 
   <p v-else class="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-    Nothing has happened yet. WordPress records activity here as you work.
+    {{ __('Nothing has happened yet. WordPress records activity here as you work.') }}
   </p>
 </template>

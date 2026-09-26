@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/vue-query'
 import type { NativeWidgetResponse } from '@/types/api'
 import { nativeWidgetKey } from '@/composables/useDashboard'
 import { rest } from '@/services/rest'
+import { __ } from '@/utils/i18n'
 
 const props = defineProps<{
   id: string
@@ -48,14 +49,14 @@ const hasForm = computed(() => /<form[\s>]/i.test(html.value))
 
 <template>
   <div v-if="widget.isLoading.value" class="py-6 text-center text-sm text-slate-500">
-    Loading widget…
+    {{ __('Loading widget…') }}
   </div>
 
   <div
     v-else-if="widget.isError.value"
     class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
   >
-    <p class="font-medium">This widget could not be rendered.</p>
+    <p class="font-medium">{{ __('This widget could not be rendered.') }}</p>
     <p class="mt-1 text-xs opacity-80">{{ widget.error.value?.message }}</p>
   </div>
 
@@ -69,23 +70,24 @@ const hasForm = computed(() => /<form[\s>]/i.test(html.value))
     <div v-if="html !== ''" class="suite-native-widget text-sm" v-html="html" />
 
     <p v-else class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-      This widget produced no output outside wp-admin.
+      {{ __('This widget produced no output outside wp-admin.') }}
     </p>
 
     <p
       v-if="hasScripts"
       class="mt-3 rounded-md bg-slate-50 p-2 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400"
     >
-      Scripts in this widget do not run inside the dashboard, so it may be incomplete.
+      {{ __('Scripts in this widget do not run inside the dashboard, so it may be incomplete.') }}
     </p>
 
     <p
       v-if="hasForm"
       class="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
     >
-      This widget has a form. Submit it on the
-      <a :href="`${adminUrl}index.php`" class="underline">native dashboard</a>, where WordPress
-      handles the request.
+      {{ __('This widget has a form, which WordPress can only submit from the native dashboard.') }}
+      <a :href="`${adminUrl}index.php`" class="underline">
+        {{ __('Open the native dashboard') }}
+      </a>
     </p>
   </template>
 </template>

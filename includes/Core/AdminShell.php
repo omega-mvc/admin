@@ -1,6 +1,6 @@
 <?php
 /**
- * Decides which wp-admin screens are rendered by the SPA shell.
+ * Decides which wp-admin screens the suite renders, and retires the old entry.
  *
  * @package AdminSuite
  */
@@ -12,54 +12,74 @@ namespace AdminSuite\Core;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Replaces supported wp-admin screens with the Vue application.
+ * Mounts the Vue application on WordPress's own dashboard.
+ *
+ * The suite does not add a page to wp-admin: it takes over `index.php` in
+ * every admin area and mounts on `#dashboard-widgets-wrap`, the element
+ * `wp-admin/index.php` already prints. That element is what makes the takeover
+ * possible without output buffering. `wp_dashboard()` is invoked inline rather
+ * than through a `do_action()`, so there is no hook to detach the core widgets
+ * with, while `createApp().mount()` replaces an element's contents and keeps
+ * the element. The `<h1>`, the admin bar, the notices and the wp-admin menu all
+ * stay where WordPress puts them, and if the bundle ever fails to boot the real
+ * dashboard is still on screen.
  */
 final class AdminShell {
 
 	/**
-	 * Menu slug of the SPA entry.
+	 * Slug of the retired `admin.php?page=` entry, kept only to redirect it.
 	 */
-	public const SLUG = 'admin-suite';
+	private const LEGACY_SLUG = 'admin-suite';
 
 	/**
 	 * Register the shell hooks.
 	 */
 	public function register(): void {
 		add_filter( 'admin_body_class', array( $this, 'bodyClass' ) );
-		add_action( 'admin_menu', array( $this, 'registerMenu' ), 999 );
+		add_action( 'init', array( $this, 'retireLegacyEntry' ) );
 	}
 
 	/**
 	 * Whether the given screen is rendered by the suite.
 	 *
-	 * The `page` query parameter holds the menu *slug*, while the value passed to
-	 * `admin_enqueue_scripts` is a *hook suffix*. The two are different strings,
-	 * so both representations are compared.
+	 * `admin_enqueue_scripts` hands over a *hook suffix*, whereas
+	 * `admin_body_class` passes nothing and has to be answered from the current
+	 * screen. Both spellings are accepted, which is why `dashboardIds()` lists
+	 * the hook suffix and the screen ids together.
 	 *
 	 * @param string|null $hookSuffix Optional. Screen hook suffix. When omitted
-	 *                                 the current request is inspected instead.
+	 *                                 the current screen is inspected instead.
 	 */
 	public static function isSuiteScreen( ?string $hookSuffix = null ): bool {
 		if ( null !== $hookSuffix ) {
-			return in_array( $hookSuffix, self::hookSuffixes(), true );
+			return in_array( $hookSuffix, self::dashboardIds(), true );
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 
-		return self::SLUG === $page;
+		return $screen instanceof \WP_Screen && in_array( $screen->id, self::dashboardIds(), true );
 	}
 
 	/**
-	 * Every hook suffix WordPress may use for the SPA screen.
+	 * Every name the three dashboards go by.
 	 *
-	 * Derived from the slug rather than hardcoded, because the exact suffix
-	 * depends on the WP version and on whether the entry has a parent.
+	 * `index.php` is the hook suffix on all of them: the suite no longer
+	 * registers a menu page, so `wp-admin/admin.php` falls through to
+	 * `$hook_suffix = $pagenow` and every dashboard answers `index.php`. The
+	 * other three are the screen ids `AdminContext::screenId()` returns, which is
+	 * what the screen lookup sees, and they are derived from it rather than
+	 * repeated so the mapping stays in one place.
 	 *
 	 * @return list<string>
 	 */
-	private static function hookSuffixes(): array {
-		return array( 'toplevel_page_' . self::SLUG, get_plugin_page_hookname( self::SLUG, '' ) );
+	private static function dashboardIds(): array {
+		return array_merge(
+			array( 'index.php' ),
+			array_map(
+				static fn ( string $context ): string => AdminContext::screenId( $context ),
+				AdminContext::all()
+			)
+		);
 	}
 
 	/**
@@ -77,31 +97,30 @@ final class AdminShell {
 	}
 
 	/**
-	 * Register the top-level SPA entry.
-	 */
-	public function registerMenu(): void {
-		add_menu_page(
-			__( 'Admin Suite', 'admin-suite' ),
-			__( 'Dashboard', 'admin-suite' ),
-			'read',
-			self::SLUG,
-			array( $this, 'render' ),
-			'dashicons-dashboard',
-			3
-		);
-	}
-	/**
-	 * Render the mount point for the Vue application.
+	 * Send the retired `admin.php?page=admin-suite` entry to the dashboard.
 	 *
-	 * Deliberately empty: `createApp().mount()` replaces the contents of the
-	 * element it mounts on, so anything left inside survives only when the
-	 * application failed to boot.
+	 * The suite used to register its own top-level menu page, so bookmarks and
+	 * muscle memory still point at it. Left alone WordPress answers 403, and
+	 * not from the block that would suggest: `wp-admin/menu.php:375` calls
+	 * `user_can_access_admin_page()`, which dies as soon as `$_registered_pages`
+	 * has no entry for a page nobody registered. That require happens at
+	 * `wp-admin/admin.php:158-163`, which is 22 lines *before* `admin_init` at
+	 * line 180, so an `admin_init` hook is already too late to run. `init` fires
+	 * from the `wp-load.php` require at line 35 and is early enough to win.
 	 */
-	public function render(): void {
-		if ( ! current_user_can( 'read' ) ) {
-			wp_die( esc_html__( 'You are not allowed to access this page.', 'admin-suite' ) );
+	public function retireLegacyEntry(): void {
+		if ( ! is_admin() || wp_doing_ajax() ) {
+			return;
 		}
 
-		echo '<div id="admin-suite-root"></div>';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only legacy URL check.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( self::LEGACY_SLUG !== $page ) {
+			return;
+		}
+
+		wp_safe_redirect( admin_url( 'index.php' ) );
+		exit;
 	}
 }

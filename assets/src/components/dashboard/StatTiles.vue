@@ -6,12 +6,15 @@ import { FileText, Image, MessageSquare, Users, Globe } from 'lucide-vue-next'
 import type { DashboardCounts } from '@/types/api'
 import type { FunctionalComponent } from 'vue'
 
+import { __, _n, sprintf } from '@/utils/i18n'
+
 /**
  * The counters row. Each tile links to the screen that owns the number, so the
  * dashboard is a launchpad rather than a dead-end summary.
  *
- * The labels are plain English: only the panel titles are translated, because
- * those come from PHP. Localising the SPA itself is still open.
+ * Every label goes through the same `__()` the PHP side uses. Panel titles need
+ * none of this: they arrive from the dashboard endpoint already translated,
+ * because WordPress is the one that named them.
  */
 const props = defineProps<{
   counts: DashboardCounts
@@ -34,41 +37,41 @@ const tiles = computed<Tile[]>(() => {
   return [
     {
       key: 'posts',
-      label: 'Posts',
+      label: __('Posts'),
       value: counts.posts,
-      sub: counts.postsDraft === 1 ? '1 draft' : `${counts.postsDraft} drafts`,
+      sub: sprintf(_n('%s draft', '%s drafts', counts.postsDraft), counts.postsDraft),
       href: `${url}edit.php?post_type=post`,
       icon: FileText,
     },
     {
       key: 'pages',
-      label: 'Pages',
+      label: __('Pages'),
       value: counts.pages,
-      sub: 'Published and draft',
+      sub: __('Published and draft'),
       href: `${url}edit.php?post_type=page`,
       icon: Globe,
     },
     {
       key: 'media',
-      label: 'Media',
+      label: __('Media'),
       value: counts.media,
-      sub: 'Attachments',
+      sub: __('Attachments'),
       href: `${url}upload.php`,
       icon: Image,
     },
     {
       key: 'commentsPending',
-      label: 'Comments',
+      label: __('Comments'),
       value: counts.commentsPending,
-      sub: counts.commentsPending === 0 ? 'None pending' : 'Awaiting moderation',
+      sub: counts.commentsPending === 0 ? __('None pending') : __('Awaiting moderation'),
       href: `${url}edit-comments.php`,
       icon: MessageSquare,
     },
     {
       key: 'users',
-      label: 'Users',
+      label: __('Users'),
       value: counts.users,
-      sub: 'All roles',
+      sub: __('All roles'),
       href: `${url}users.php`,
       icon: Users,
     },

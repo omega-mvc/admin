@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { rest } from '@/services/rest'
 import type { SearchResult } from '@/types/api'
 import { useAppStore } from '@/stores'
+import { __, _n, sprintf } from '@/utils/i18n'
 
 const MIN_TERM_LENGTH = 2
 const DEBOUNCE_MS = 180
@@ -90,14 +91,14 @@ function onKeydown(event: KeyboardEvent): void {
         class="w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        :aria-label="__('Command palette')"
       >
         <div class="flex items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
           <Search class="size-4 shrink-0 text-slate-400" aria-hidden="true" />
           <input
             v-model="term"
             type="search"
-            placeholder="Search posts, media, settings, users…"
+            :placeholder="__('Search posts, media, settings, users…')"
             class="w-full bg-transparent py-3 text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
             @input="onInput"
           />
@@ -109,16 +110,21 @@ function onKeydown(event: KeyboardEvent): void {
 
         <ul class="max-h-80 overflow-y-auto p-2">
           <li v-if="!isReady" class="px-3 py-6 text-center text-sm text-slate-500">
-            Type at least {{ MIN_TERM_LENGTH }} characters.
+            {{
+              sprintf(
+                _n('Type at least %d character.', 'Type at least %d characters.', MIN_TERM_LENGTH),
+                MIN_TERM_LENGTH,
+              )
+            }}
           </li>
           <li
             v-else-if="query.isLoading.value"
             class="px-3 py-6 text-center text-sm text-slate-500"
           >
-            Searching…
+            {{ __('Searching…') }}
           </li>
           <li v-else-if="results.length === 0" class="px-3 py-6 text-center text-sm text-slate-500">
-            No matches for “{{ debounced }}”.
+            {{ sprintf(__('No matches for “%s”.'), debounced) }}
           </li>
           <template v-else>
             <li v-for="(item, index) in results" :key="`${item.type}-${item.id}`">
