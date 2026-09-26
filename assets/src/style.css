@@ -150,6 +150,53 @@ body.admin-suite-shell #wpcontent {
  * Scoped to the wrapper and not to `#screen-meta-links`, so a future suite screen
  * that does register help tabs keeps its Help button.
  */
+/*
+ * The account entry at the top of the sidebar: a profile block, not a greeting.
+ *
+ * Core lays a menu row out as a 36px image floated left with the name clearing
+ * it through `padding-left: 36px`. An avatar wants the opposite, so both are
+ * cancelled here: the image box is un-floated and centred, and the name drops
+ * below it. The three selectors are all id-qualified on top of the class, which
+ * is what outranks core's own `#adminmenu div.wp-menu-*` rules without
+ * `!important`.
+ *
+ * `.wp-submenu-head` is the aria-hidden copy of the name that core shows when
+ * the menu is folded, so it gets the same treatment; without that the two
+ * states would read differently from each other.
+ *
+ * `object-fit: cover` matters because `get_avatar_url()` can hand back an image
+ * that is not square, and `border-radius: 50%` on a non-square box would render
+ * an ellipse. The 28px matches the size requested from Gravatar, so the
+ * browser is not upscaling.
+ */
+body.admin-suite-shell #adminmenu li#admin-suite-account div.wp-menu-image {
+  float: none;
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 8px auto 0;
+}
+
+body.admin-suite-shell #adminmenu li#admin-suite-account div.wp-menu-image img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  padding: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 1;
+}
+
+body.admin-suite-shell #adminmenu li#admin-suite-account div.wp-menu-name,
+body.admin-suite-shell #adminmenu li#admin-suite-account .wp-submenu-head {
+  display: block;
+  padding: 4px 8px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
 body.admin-suite-shell #screen-options-link-wrap {
   display: none;
 }

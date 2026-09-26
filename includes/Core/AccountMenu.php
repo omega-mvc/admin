@@ -112,10 +112,17 @@ final class AccountMenu {
 	/**
 	 * The top-level entry: menu title, capability, slug, page title, classes, hook, icon.
 	 *
-	 * The title is escaped here because nothing downstream does it. Slot 0 goes
-	 * through `wptexturize()` and is then echoed as-is, which is also why the
-	 * name is passed as plain text rather than wrapped in the `display-name`
-	 * span the admin bar uses: there is no account bar left to style it.
+	 * The title is escaped here because nothing downstream does it: slot 0 goes
+	 * through `wptexturize()` and is then echoed as-is. It is also the bare
+	 * display name, with no `Howdy, %s` around it, because the entry is laid out
+	 * as a profile block with the avatar above and the name below, and a
+	 * greeting would break that. A display name is user data rather than a
+	 * translatable string, so no `__()` call belongs here at all.
+	 *
+	 * Slot 5 becomes the slug so the `<li>` gets an id, which is what
+	 * `style.css` needs to cancel the sidebar's own image and padding rules.
+	 * Core's entries carry ids the same way, and it changes nothing else: the
+	 * submenu is keyed on slot 2, not on the array key or on this one.
 	 *
 	 * @return array<int, string>
 	 */
@@ -123,22 +130,13 @@ final class AccountMenu {
 		$user   = wp_get_current_user();
 		$avatar = get_avatar_url( $user->ID, array( 'size' => 28 ) );
 
-		/*
-		 * translators: %s: the current user's display name.
-		 */
-		$title = sprintf(
-			// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch,WordPress.WP.I18n.MissingTranslatorsComment -- deliberately core's own string, so a translated site shows core's wording.
-			__( 'Howdy, %s', 'default' ),
-			esc_html( $user->display_name )
-		);
-
 		return array(
-			$title,
+			esc_html( $user->display_name ),
 			'read',
 			self::SLUG,
 			'',
 			'menu-top menu-top-first',
-			'',
+			self::SLUG,
 			is_string( $avatar ) ? $avatar : 'none',
 		);
 	}
