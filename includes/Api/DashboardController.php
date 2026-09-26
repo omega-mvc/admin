@@ -38,6 +38,13 @@ final class DashboardController {
 	private string $admin = AdminContext::SITE;
 
 	/**
+	 * Id of the welcome panel once the suite has taken it over.
+	 *
+	 * @var string
+	 */
+	private const WELCOME_ID = 'welcome-panel';
+
+	/**
 	 * User meta key holding the ordered widget layout.
 	 */
 	private const LAYOUT_META = 'admin_suite_dashboard_layout';
@@ -203,6 +210,16 @@ final class DashboardController {
 				'admin_suite_widget_is_builtin',
 				__( 'This panel is rendered by the dashboard itself and has no server-side HTML.', 'admin-suite' ),
 				array( 'status' => 409 )
+			);
+		}
+
+		if ( self::WELCOME_ID === $id ) {
+			return rest_ensure_response(
+				array(
+					'id'    => $id,
+					'title' => $widgets[ $id ]['title'],
+					'html'  => $this->welcomePanelHtml(),
+				)
 			);
 		}
 
@@ -452,6 +469,19 @@ final class DashboardController {
 	private function allWidgets(): array {
 		$widgets = array();
 
+		/*
+		 * First, so it keeps the position it has on the native dashboard: the panel is
+		 * meant to be what you see first, not the last card in the grid.
+		 */
+		if ( $this->showsWelcomePanel() ) {
+			$widgets[ self::WELCOME_ID ] = array(
+				'id'      => self::WELCOME_ID,
+				'title'   => __( 'Welcome', 'admin-suite' ),
+				'context' => 'normal',
+				'span'    => $this->spanOf( 'normal' ),
+			);
+		}
+
 		foreach ( $this->builtInPanels() as $id => $panel ) {
 			$widgets[ $id ] = array(
 				'id'      => (string) $id,
@@ -478,6 +508,69 @@ final class DashboardController {
 		}
 
 		return $widgets;
+	}
+
+	/**
+	 * Whether WordPress would have printed the welcome panel here.
+	 *
+	 * `wp-admin/index.php:174` guards the block on this capability alone; the
+	 * per-user show/hide choice is expressed as a `hidden` class on the markup
+	 * rather than by not rendering it, so the same is true here.
+	 *
+	 * @return bool
+	 */
+	private function showsWelcomePanel(): bool {
+		if ( ! function_exists( 'wp_welcome_panel' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/dashboard.php';
+		}
+
+		return current_user_can( 'edit_theme_options' );
+	}
+
+	/**
+	 * The welcome panel, moved inside the suite.
+	 *
+	 * This reproduces `wp-admin/index.php:175-200` deliberately verbatim, including
+	 * the `hidden` class logic, the nonce field and the dismiss link, so the panel
+	 * still dismisses itself with no code of ours. `AdminShell::detachWelcomePanel()`
+	 * removes every `welcome_panel` callback to stop core printing the block above
+	 * the mount, which means `do_action( 'welcome_panel' )` would now emit nothing and
+	 * the function has to be called directly.
+	 *
+	 * @return string
+	 */
+	private function welcomePanelHtml(): string {
+		$classes = 'welcome-panel';
+
+		/*
+		 * 0 = hide, 1 = toggled to show or single site creator, 2 = multisite site owner.
+		 * Copied from `wp-admin/index.php:177-179`.
+		 */
+		$option = (int) get_user_meta( get_current_user_id(), 'show_welcome_panel', true );
+		$hide   = ( 0 === $option || ( 2 === $option && wp_get_current_user()->user_email !== get_option( 'admin_email' ) ) );
+
+		if ( $hide ) {
+			$classes .= ' hidden';
+		}
+
+		ob_start();
+		wp_welcome_panel();
+		$content = (string) ob_get_clean();
+
+		return sprintf(
+			'<div id="welcome-panel" class="%1$s">%2$s<a class="welcome-panel-close" href="%3$s" aria-label="%4$s">%5$s</a>%6$s</div>',
+			esc_attr( $classes ),
+			// Fourth argument is $display: the third is $referer, so without it this
+			// echoes the input and the markup lands *outside* the JSON we are
+			// building, which corrupts the whole REST response.
+			wp_nonce_field( 'welcome-panel-nonce', 'welcomepanelnonce', false, false ),
+			esc_url( admin_url( '?welcome=0' ) ),
+			// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- Core's own string, deliberately.
+			esc_attr__( 'Dismiss the welcome panel', 'default' ),
+			// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- Core's own string, deliberately.
+			esc_html__( 'Dismiss', 'default' ),
+			$content
+		);
 	}
 
 	/**

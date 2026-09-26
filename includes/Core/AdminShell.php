@@ -37,6 +37,56 @@ final class AdminShell {
 	public function register(): void {
 		add_filter( 'admin_body_class', array( $this, 'bodyClass' ) );
 		add_action( 'init', array( $this, 'retireLegacyEntry' ) );
+		add_action( 'admin_head', array( $this, 'removeContextualHelp' ) );
+		add_action( 'wp_dashboard_setup', array( $this, 'detachWelcomePanel' ) );
+	}
+
+	/**
+	 * Drop the dashboard's contextual help.
+	 *
+	 * The Help button is drawn by `WP_Screen::render_screen_meta()` at
+	 * `wp-admin/admin-header.php:291`, and it is gated on `$screen->get_help_tabs()`
+	 * being non-empty — the Screen Options button next to it is gated on
+	 * `show_screen_options()` instead, so clearing the tabs removes only the help.
+	 *
+	 * `admin_head` is the hook to do it on. `wp-admin/index.php` registers the four
+	 * dashboard help tabs at lines 41, 54, 67 and 101, all of them before it
+	 * requires `admin-header.php` at line 137; `admin_head` fires at
+	 * `admin-header.php:168`, which is after the registration and before line 291.
+	 * Any earlier hook would run before the tabs exist and any later one would run
+	 * after the button is already in the markup.
+	 *
+	 * `remove_help_tabs()` is used rather than removing the four known ids, so a tab
+	 * added by another plugin on this screen goes too, and so this keeps working if
+	 * core renumbers them.
+	 */
+	public function removeContextualHelp(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( $screen instanceof \WP_Screen ) {
+			$screen->remove_help_tabs();
+		}
+	}
+
+	/**
+	 * Stop WordPress from printing the welcome panel above the suite.
+	 *
+	 * `wp-admin/index.php:174` guards the whole block on `has_action( 'welcome_panel' )`
+	 * and then calls `do_action( 'welcome_panel' )` inline at line 197, so there is no
+	 * filter to intercept and `remove_action()` against core's own callback would
+	 * leave the block in place for any plugin that also hooks it.
+	 *
+	 * `wp_dashboard_setup()` is the only viable moment. It fires
+	 * `do_action( 'wp_dashboard_setup' )` at `wp-admin/includes/dashboard.php:135`,
+	 * which is after it has registered `wp_welcome_panel` and before `index.php:174`
+	 * reads `has_action()`. `admin_init` is too early: it fires at
+	 * `wp-admin/admin.php:180`, before the screen file is loaded at all.
+	 *
+	 * The panel itself is not lost. `DashboardController` renders it inside the
+	 * suite instead, by calling `wp_welcome_panel()` directly.
+	 */
+	public function detachWelcomePanel(): void {
+		remove_all_actions( 'welcome_panel' );
 	}
 
 	/**
