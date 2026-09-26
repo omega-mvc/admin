@@ -35,6 +35,19 @@ final class AccountMenu {
 	private const SLUG = 'admin-suite-account';
 
 	/**
+	 * Slug for the separator that closes the account block.
+	 *
+	 * `add_menu_classes()` decides whether an entry is a separator by looking at
+	 * nothing but whether slot 2 starts with the literal `separator`, so the
+	 * prefix is load-bearing rather than cosmetic. The separator is also what
+	 * makes core mark the account entry `menu-top-last` and hand
+	 * `menu-top-first` to Dashboard, which is the whole reason one is needed:
+	 * without it the account block and Dashboard are a single group, and a
+	 * collapsed sidebar has no gap to show the avatar in.
+	 */
+	private const SEPARATOR_SLUG = 'separator-account';
+
+	/**
 	 * Registers the hooks.
 	 *
 	 * Both run late on purpose. `admin_menu` fires at `includes/menu.php:168`,
@@ -84,6 +97,12 @@ final class AccountMenu {
 		 * to differ: `SLUG` is a sentinel that is deliberately not a URL, because
 		 * `_wp_menu_output()` builds the parent anchor's href out of the first
 		 * submenu row rather than out of the entry.
+		 *
+		 * The separator goes in straight after the entry, which is the one place a
+		 * key has to be crafted rather than merely free: the entry takes an integer
+		 * key and the next item is the next integer, so there is no integer between
+		 * them. `separatorKey()` solves that. Core then does the class bookkeeping
+		 * on its own, and doing it by hand would only fight it.
 		 */
 	public function addToSidebar(): void {
 		global $menu, $submenu;
@@ -106,7 +125,14 @@ final class AccountMenu {
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- the sidebar is rendered from this global.
 		$menu[ $key ] = $this->entry();
 
-		$this->handOverFirstClass( $menu, $key );
+		$after = $this->separatorKey( $key );
+
+		if ( ! array_key_exists( $after, $menu ) ) {
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- the sidebar is rendered from this global.
+			$menu[ $after ] = $this->separator();
+		}
+
+		$this->dropHardcodedFirst( $menu, $after );
 	}
 
 	/**
@@ -124,6 +150,12 @@ final class AccountMenu {
 	 * Core's entries carry ids the same way, and it changes nothing else: the
 	 * submenu is keyed on slot 2, not on the array key or on this one.
 	 *
+	 * Slot 4 carries no group-position class. `add_menu_classes()` assigns
+	 * `menu-top-last` and `menu-top-first` from the separators it finds, and it
+	 * only ever adds a class, never takes one away, so a hardcoded
+	 * `menu-top-first` here would survive the separator and mark this entry as
+	 * the start of a group it no longer starts.
+	 *
 	 * @return array<int, string>
 	 */
 	private function entry(): array {
@@ -135,7 +167,7 @@ final class AccountMenu {
 			'read',
 			self::SLUG,
 			'',
-			'menu-top menu-top-first',
+			'menu-top',
 			self::SLUG,
 			is_string( $avatar ) ? $avatar : 'none',
 		);
@@ -182,44 +214,94 @@ final class AccountMenu {
 		return $rows;
 	}
 
-		/**
-		 * Moves `menu-top-first` from whoever was holding it to the new top item.
-		 *
-		 * The class belongs to the first item of a group, not to Dashboard
-		 * specifically: `add_menu_classes()` re-arms its search at every separator
-		 * and hands the class to the next item it finds, which is why a stock
-		 * sidebar carries the class several times over. The one hardcoded on
-		 * Dashboard exists only because Dashboard was first. With the account entry
-		 * above it the class has to move, or both of the two top items are marked as
-		 * the start of a group.
-		 *
-		 * @param array<array-key, mixed> $menu   Menu by reference, so the edit is the one that sticks.
-		 * @param int                     $winner Key of the entry that should end up holding the class.
-		 */
-	private function handOverFirstClass( array &$menu, int $winner ): void {
-		foreach ( $menu as $key => $item ) {
-			if ( $key === $winner || ! isset( $item[4] ) ) {
+	/**
+	 * Menu key that sorts between the account entry and the next item.
+	 *
+	 * The key is the position, not a handle: `wp-admin/includes/menu.php:280`
+	 * runs `uksort( $menu, 'strnatcasecmp' )`, and it runs *after*
+	 * `do_action( 'admin_menu' )` at `:168`, so the key is written into an
+	 * unsorted array and only then ordered. `firstFreeKey()` hands out an
+	 * integer and the item that follows is the next integer, so there is no
+	 * integer left between them.
+	 *
+	 * `strnatcasecmp` is a natural comparison, so the shared numeric prefix
+	 * decides and `'1' < '1.5' < '2'` the way `'59' < '59.5' < '60'` does too.
+	 * A non-integer string key is safe: `add_menu_classes()` only ever puts
+	 * `$order` through a strict `0 === $order` comparison and uses it as an
+	 * array index.
+	 *
+	 * @param int $key Key the account entry took.
+	 * @return string Key that sorts immediately after it.
+	 */
+	private function separatorKey( int $key ): string {
+		return (string) $key . '.5';
+	}
+
+	/**
+	 * The sidebar separator itself.
+	 *
+	 * Shaped after core's own two, at `wp-admin/menu.php:69` and `:205`, which
+	 * are the entries that produce the gaps the suite inherited. Only slot 2 is
+	 * load-bearing: `add_menu_classes()` reads
+	 * `str_starts_with( $top[2], 'separator' )` and nothing else to decide that
+	 * this is a separator rather than a menu item.
+	 *
+	 * @return array<int, string> Menu row, shaped like core's separators.
+	 */
+	private function separator(): array {
+		return array( '', 'read', self::SEPARATOR_SLUG, '', 'wp-menu-separator' );
+	}
+
+	/**
+	 * Drop the `menu-top-first` the item after our separator hardcodes.
+	 *
+	 * `add_menu_classes()` arms its `menu-top-first` on whatever item follows a
+	 * separator, and `add_cssclass()` is a blind concatenation
+	 * (`wp-admin/includes/menu.php:212`), so it never notices the class is
+	 * already there. Core's own separators sit *after* Dashboard, so on a stock
+	 * install the two never overlap; ours sits before it, and Dashboard already
+	 * carries the class hardcoded at `wp-admin/menu.php:29`. The result would be
+	 * the class twice on one element.
+	 *
+	 * Removing the hardcoded copy is enough: core adds its own a moment later, at
+	 * `wp-admin/includes/menu.php:387`, so the element still ends up with exactly
+	 * one and still gets it from the one place that knows the group boundaries.
+	 *
+	 * The item is found by key because the array is not sorted yet — `uksort()`
+	 * runs at `wp-admin/includes/menu.php:280` and this hook at `:168` — so this
+	 * has to compare keys the way core is about to. The comparison is strict:
+	 * the separator's own key has to be excluded, and it is the key that sorts
+	 * closest above it, so a `>=` test would pick the separator and strip nothing.
+	 *
+	 * @param array<array-key, mixed> $menu Menu to clean, passed by reference.
+	 * @param string                  $after Key the separator took.
+	 */
+	private function dropHardcodedFirst( array &$menu, string $after ): void {
+		$next = null;
+
+		foreach ( array_keys( $menu ) as $candidate ) {
+			if ( strnatcasecmp( (string) $candidate, $after ) <= 0 ) {
 				continue;
 			}
 
-			$classes = (string) $item[4];
-
-			if ( ! preg_match( '/(^|\s)menu-top-first(\s|$)/', $classes ) ) {
-				continue;
+			if ( null === $next || strnatcasecmp( (string) $candidate, (string) $next ) < 0 ) {
+				$next = $candidate;
 			}
-
-			$stripped = (string) preg_replace( '/\s*menu-top-first\s*/', ' ', $classes );
-
-			$menu[ $key ][4] = trim( (string) preg_replace( '/\s+/', ' ', $stripped ) );
-
-			break;
 		}
 
-		$current = isset( $menu[ $winner ][4] ) ? (string) $menu[ $winner ][4] : '';
-
-		if ( ! str_contains( $current, 'menu-top-first' ) ) {
-			$menu[ $winner ][4] = add_cssclass( 'menu-top-first', $current );
+		if ( null === $next || ! isset( $menu[ $next ][4] ) || ! is_string( $menu[ $next ][4] ) ) {
+			return;
 		}
+
+		$kept = array();
+
+		foreach ( explode( ' ', $menu[ $next ][4] ) as $name ) {
+			if ( '' !== $name && 'menu-top-first' !== $name ) {
+				$kept[] = $name;
+			}
+		}
+
+		$menu[ $next ][4] = implode( ' ', $kept );
 	}
 
 	/**
