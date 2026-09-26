@@ -24,6 +24,7 @@ export interface NewContentItem {
   readonly id: string
   readonly label: string
   readonly url: string
+  readonly newTab: boolean
 }
 
 /**

@@ -29,6 +29,15 @@ final class Enqueue {
 	/**
 	 * Text domain of the plugin. Must match the `Text Domain` header.
 	 */
+	/**
+	 * Admin bar nodes the documentation menu should open in a new tab.
+	 *
+	 * Core's own node ids, so the toolbar never has to hardcode them.
+	 *
+	 * @var list<string>
+	 */
+	private const NEW_TAB = array( 'contribute', 'wporg', 'documentation', 'learn', 'support-forums', 'feedback' );
+
 	private const TEXT_DOMAIN = 'admin-suite';
 
 	/**
@@ -384,7 +393,7 @@ final class Enqueue {
 	 * which is a second and completely legitimate route to an empty menu: an
 	 * administrator has no `manage_links`, so there is no Link entry either.
 	 *
-	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string, newTab: bool}>}
 	 */
 	private function newContentMenu(): array {
 		if ( AdminContext::SITE !== AdminContext::detect() ) {
@@ -452,7 +461,15 @@ final class Enqueue {
 	 * and user admin guard, so this menu does exist in all three admin areas and
 	 * needs no test of its own.
 	 *
-	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 * The node ids in `NEW_TAB` are the ones the toolbar opens in a new tab, so
+	 * the SPA never has to hardcode core's ids. The list turns out to be exactly
+	 * the nodes whose href leaves this site, and `about` is the exception that
+	 * proves it: `about` points at `wp-admin/about.php`, the About WordPress
+	 * *screen*, which is an admin page rather than a wordpress.org destination, so
+	 * it stays in the same tab. The ids are spelled out rather than computed from
+	 * the hosts so the behaviour is readable in one place.
+	 *
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string, newTab: bool}>}
 	 */
 	private function documentationMenu(): array {
 		if ( ! function_exists( 'wp_admin_bar_wp_menu' ) ) {
@@ -467,7 +484,7 @@ final class Enqueue {
 
 		wp_admin_bar_wp_menu( $bar );
 
-		return $this->menuFromBar( $bar, 'wp-logo' );
+		return $this->menuFromBar( $bar, 'wp-logo', self::NEW_TAB );
 	}
 
 	/**
@@ -507,12 +524,13 @@ final class Enqueue {
 	 * child link. `get_nodes()` is typed `array|null` in the stubs, so the
 	 * result is checked rather than looped over.
 	 *
-	 * @param \WP_Admin_Bar $bar     A bar a core builder has already filled.
-	 * @param string        $parentId Node id whose title becomes the menu label.
+	 * @param \WP_Admin_Bar $bar      A bar a core builder has already filled.
+	 * @param string        $parentId  Node id whose title becomes the menu label.
+	 * @param list<string>  $newTabIds Node ids the toolbar should open in a new tab.
 	 *
-	 * @return array{label: string, items: list<array{id: string, label: string, url: string}>}
+	 * @return array{label: string, items: list<array{id: string, label: string, url: string, newTab: bool}>}
 	 */
-	private function menuFromBar( \WP_Admin_Bar $bar, string $parentId ): array {
+	private function menuFromBar( \WP_Admin_Bar $bar, string $parentId, array $newTabIds = array() ): array {
 		$nodes = $bar->get_nodes();
 
 		if ( ! is_array( $nodes ) ) {
@@ -531,10 +549,13 @@ final class Enqueue {
 				continue;
 			}
 
+			$id = (string) $node->id;
+
 			$items[] = array(
-				'id'    => (string) $node->id,
-				'label' => $text,
-				'url'   => esc_url_raw( (string) $node->href ),
+				'id'     => $id,
+				'label'  => $text,
+				'url'    => esc_url_raw( (string) $node->href ),
+				'newTab' => in_array( $id, $newTabIds, true ),
 			);
 		}
 

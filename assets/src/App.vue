@@ -11,7 +11,7 @@ import {
 
 import CommandPalette from '@/components/CommandPalette.vue'
 import { useAppStore } from '@/stores'
-import { __ } from '@/utils/i18n'
+import { __, sprintf } from '@/utils/i18n'
 
 const app = useAppStore()
 
@@ -78,6 +78,7 @@ const newMenuRef = ref<HTMLElement | null>(null)
  */
 const docsMenu = window.ADMIN_SUITE_BOOTSTRAP?.docs ?? { label: '', items: [] }
 const siteFrontUrl = window.ADMIN_SUITE_BOOTSTRAP?.siteFrontUrl ?? ''
+const siteName = window.ADMIN_SUITE_BOOTSTRAP?.siteName ?? ''
 
 const docsOpen = ref(false)
 
@@ -244,8 +245,16 @@ onBeforeUnmount(() => {
         <a
           v-if="siteFrontUrl"
           :href="siteFrontUrl"
+          target="_blank"
+          rel="noopener noreferrer"
           class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-ink-muted hover:bg-sunken"
-          :aria-label="__('Visit site')"
+          :aria-label="
+            sprintf(
+              // translators: %s: site name, so the label says which site opens.
+              __('Visit %s'),
+              siteName,
+            )
+          "
         >
           <ExternalLink class="size-4" aria-hidden="true" />
         </a>
@@ -275,6 +284,8 @@ onBeforeUnmount(() => {
             <li v-for="item in docsMenu.items" :key="item.id">
               <a
                 :href="item.url"
+                :target="item.newTab ? '_blank' : undefined"
+                :rel="item.newTab ? 'noopener noreferrer' : undefined"
                 class="block px-3 py-1.5 text-sm text-ink-muted hover:bg-sunken hover:text-ink"
               >
                 {{ item.label }}
