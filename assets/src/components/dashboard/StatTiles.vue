@@ -91,10 +91,10 @@ const tiles = computed<Tile[]>(() => {
       <div
         v-for="tile in tiles"
         :key="tile.key"
-        class="rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
+        class="rounded-md border border-line p-3 transition-colors hover:border-line"
       >
         <dt
-          class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
+          class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-muted"
         >
           <component :is="tile.icon" class="size-3.5 shrink-0" aria-hidden="true" />
           {{ tile.label }}
@@ -109,7 +109,7 @@ const tiles = computed<Tile[]>(() => {
             <span class="sr-only">{{ tile.label }}</span>
           </a>
 
-          <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{{ tile.sub }}</p>
+          <p class="mt-0.5 truncate text-xs text-ink-muted">{{ tile.sub }}</p>
         </dd>
       </div>
     </dl>

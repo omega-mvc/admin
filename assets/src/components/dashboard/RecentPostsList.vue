@@ -35,16 +35,16 @@ function statusLabel(status: string): string {
     case 'inherit':
       return _x('Inherit', 'post status')
     default:
-      return status.replace(/-/g, ' ')
+      return status.replace(/-/g, '')
   }
 }
 
 /** Status badge colours, keyed by post status. */
 const badge: Record<string, string> = {
-  publish: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  draft: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  pending: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  future: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
+  publish: 'bg-positive-soft text-positive',
+  draft: 'bg-caution-soft text-caution',
+  pending: 'bg-info-soft text-info',
+  future: 'bg-grape-soft text-grape',
 }
 </script>
 
@@ -53,7 +53,7 @@ const badge: Record<string, string> = {
     <li
       v-for="post in posts"
       :key="post.id"
-      class="flex items-start gap-3 rounded-md p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+      class="flex items-start gap-3 rounded-md p-1.5 hover:bg-sunken"
     >
       <img
         v-if="post.thumb"
@@ -64,7 +64,7 @@ const badge: Record<string, string> = {
       />
       <span
         v-else
-        class="flex size-10 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
+        class="flex size-10 shrink-0 items-center justify-center rounded bg-sunken text-ink-faint"
       >
         <FileText class="size-5" aria-hidden="true" />
       </span>
@@ -78,15 +78,10 @@ const badge: Record<string, string> = {
           {{ post.title === '' ? sprintf(__('Post #%s'), post.id) : post.title }}
         </a>
 
-        <p
-          class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400"
-        >
+        <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-muted">
           <span
             class="rounded px-1.5 py-0.5 font-medium capitalize"
-            :class="
-              badge[post.status] ??
-              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-            "
+            :class="badge[post.status] ?? 'bg-sunken text-ink '"
           >
             {{ statusLabel(post.status) }}
           </span>
@@ -101,7 +96,7 @@ const badge: Record<string, string> = {
     </li>
   </ul>
 
-  <p v-else class="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+  <p v-else class="py-4 text-center text-sm text-ink-muted">
     {{ __('No posts yet.') }}
   </p>
 </template>

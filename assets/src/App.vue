@@ -17,30 +17,23 @@ const app = useAppStore()
     widgets already were, so only the panel itself is left to render.
 
     What remains is a toolbar carrying the two controls the core dashboard has
-    no place for, the search palette and the suite's colour scheme. It sits
-    inside the panel, not above it: core's own `<h1>` is still the page title.
+    no place for, the search palette and the suite's colour scheme. It sits inside the panel, not above it: core's own `<h1>` is still the page title.
   -->
-  <div
-    class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
-    :class="app.darkMode ? 'dark' : ''"
-  >
+  <div class="min-h-screen bg-canvas text-ink" :class="app.darkMode ? 'dark' : ''">
     <div class="flex items-center justify-end gap-2 pb-3">
       <button
         type="button"
-        class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-sm text-ink-muted hover:bg-sunken"
         @click="app.togglePalette(true)"
       >
         <Search class="size-4" aria-hidden="true" />
         <span class="hidden sm:inline">{{ __('Search…') }}</span>
-        <kbd
-          class="hidden rounded border border-slate-200 px-1 text-[10px] sm:inline dark:border-slate-700"
-          >⌘K</kbd
-        >
+        <kbd class="hidden rounded border border-line px-1 text-[10px] sm:inline">⌘K</kbd>
       </button>
 
       <button
         type="button"
-        class="rounded-md bg-white p-2 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+        class="rounded-md bg-panel p-2 hover:bg-sunken"
         :aria-label="app.darkMode ? __('Switch to light mode') : __('Switch to dark mode')"
         @click="app.toggleDarkMode()"
       >

@@ -84,32 +84,29 @@ function onKeydown(event: KeyboardEvent): void {
   <Teleport to="body">
     <div
       v-if="app.paletteOpen"
-      class="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/50 p-4 pt-24 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-start justify-center bg-scrim/50 p-4 pt-24 backdrop-blur-sm"
       @click.self="app.togglePalette(false)"
     >
       <div
-        class="w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        class="w-full max-w-xl overflow-hidden rounded-xl border border-line bg-panel shadow-2xl"
         role="dialog"
         aria-modal="true"
         :aria-label="__('Command palette')"
       >
-        <div class="flex items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
-          <Search class="size-4 shrink-0 text-slate-400" aria-hidden="true" />
+        <div class="flex items-center gap-2 border-b border-line px-4">
+          <Search class="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
           <input
             v-model="term"
             type="search"
             :placeholder="__('Search posts, media, settings, users…')"
-            class="w-full bg-transparent py-3 text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
+            class="w-full bg-transparent py-3 text-sm outline-none placeholder:text-ink-faint"
             @input="onInput"
           />
-          <kbd
-            class="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:border-slate-600 dark:text-slate-400"
-            >esc</kbd
-          >
+          <kbd class="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink-muted">esc</kbd>
         </div>
 
         <ul class="max-h-80 overflow-y-auto p-2">
-          <li v-if="!isReady" class="px-3 py-6 text-center text-sm text-slate-500">
+          <li v-if="!isReady" class="px-3 py-6 text-center text-sm text-ink-muted">
             {{
               sprintf(
                 _n('Type at least %d character.', 'Type at least %d characters.', MIN_TERM_LENGTH),
@@ -119,11 +116,11 @@ function onKeydown(event: KeyboardEvent): void {
           </li>
           <li
             v-else-if="query.isLoading.value"
-            class="px-3 py-6 text-center text-sm text-slate-500"
+            class="px-3 py-6 text-center text-sm text-ink-muted"
           >
             {{ __('Searching…') }}
           </li>
-          <li v-else-if="results.length === 0" class="px-3 py-6 text-center text-sm text-slate-500">
+          <li v-else-if="results.length === 0" class="px-3 py-6 text-center text-sm text-ink-muted">
             {{ sprintf(__('No matches for “%s”.'), debounced) }}
           </li>
           <template v-else>
@@ -133,13 +130,13 @@ function onKeydown(event: KeyboardEvent): void {
                 class="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
                 :class="
                   index === activeIndex
-                    ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-100'
-                    : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800'
+                    ? 'bg-accent-soft text-accent-ink '
+                    : 'text-ink hover:bg-sunken '
                 "
                 @mouseenter="activeIndex = index"
               >
                 <span class="truncate">{{ item.label }}</span>
-                <span class="ml-3 flex shrink-0 items-center gap-2 text-xs text-slate-400">
+                <span class="ml-3 flex shrink-0 items-center gap-2 text-xs text-ink-faint">
                   <span>{{ item.sub }}</span>
                   <CornerDownLeft v-if="index === activeIndex" class="size-3" aria-hidden="true" />
                 </span>

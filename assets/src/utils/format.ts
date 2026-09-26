@@ -1,8 +1,7 @@
 /**
  * Small display formatters.
  *
- * WordPress sends ISO 8601 strings already in the site's timezone, so they are
- * parsed as-is and rendered in the admin's locale. An unparseable or absent
+ * WordPress sends ISO 8601 strings already in the site's timezone, so they are * parsed as-is and rendered in the admin's locale. An unparseable or absent
  * value degrades to an em dash rather than "Invalid Date".
  *
  * The locale is WordPress's, not the browser's: an administrator whose dashboard

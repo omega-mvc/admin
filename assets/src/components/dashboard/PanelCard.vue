@@ -28,18 +28,14 @@ const emit = defineEmits<{
 }>()
 
 const buttonClass =
-  'rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+  'rounded p-1 text-ink-faint hover:bg-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-30'
 </script>
 
 <template>
-  <article
-    class="group flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
-  >
-    <header
-      class="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800"
-    >
+  <article class="group flex h-full flex-col rounded-lg border border-line bg-panel shadow-sm">
+    <header class="flex items-center gap-2 border-b border-line px-3 py-2">
       <GripVertical
-        class="size-4 shrink-0 cursor-grab text-slate-300 group-hover:text-slate-400 dark:text-slate-600"
+        class="size-4 shrink-0 cursor-grab text-ink-faint group-hover:text-ink-faint"
         aria-hidden="true"
       />
 

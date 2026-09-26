@@ -10,11 +10,7 @@ import '@/style.css'
  * The element the application takes over.
  *
  * `wp-admin/index.php` prints this itself, wrapped around the core dashboard
- * widgets, and `mount()` replaces an element's contents while keeping the
- * element. That is the whole reason the takeover needs no output buffering:
- * `wp_dashboard()` is called inline rather than through a `do_action()`, so
- * there is no hook to detach the core widgets with. The pleasant side effect
- * is that a bundle which fails to boot leaves WordPress's own dashboard on
+ * widgets, and `mount()` replaces an element's contents while keeping the * element. That is the whole reason the takeover needs no output buffering: * `wp_dashboard()` is called inline rather than through a `do_action()`, so * there is no hook to detach the core widgets with. The pleasant side effect * is that a bundle which fails to boot leaves WordPress's own dashboard on
  * screen instead of an empty box.
  */
 const MOUNT_ID = 'dashboard-widgets-wrap'

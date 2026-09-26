@@ -1,35 +1,173 @@
 @import 'tailwindcss';
 
-/*
- * Only the mount point is styled from here. The suite now renders the
- * dashboard itself, so this stylesheet is enqueued on a page whose remaining
- * markup is wp-admin's own chrome, and every rule below is scoped so the
- * utilities cannot leak out into it.
- */
 @source '../src/**/*.{vue,ts}';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Colour tokens.
+ *
+ * These are the suite's own colours. Tailwind's stock ramps (slate, gray, zinc,
+ * neutral, stone) are deliberately not used anywhere: slate in particular is a
+ * blue-tinted grey, and stacked against WordPress's own `#f0f0f1` it produced a
+ * visible seam at the edge of the mount point that read as an accident rather
+ * than a decision.
+ *
+ * Every value is a CSS custom property, which is what makes a scheme swappable:
+ * changing a theme means re-declaring a block below, not editing 145 utility
+ * classes. `@theme inline` then hands the variables to Tailwind as
+ * `--color-<name>`, and because `inline` compiles `bg-canvas` to
+ * `background-color: var(--suite-canvas)` rather than to a resolved value, the
+ * lookup happens on the element itself. That is why the components carry no
+ * `dark:` colour variants any more: inside `.dark` the variables are different,
+ * so the same class produces the dark colour. Flipping the theme is a single
+ * class on the mount point.
+ *
+ * The values below are a starting point, not a final palette. They are picked to
+ * be a near-neutral paper cast (a trace of warmth, almost no chroma) so that
+ * nothing on the panel reads blue.
+ */
 :root {
+  /* Surfaces. The canvas is white on purpose: it is what every suite page must
+     use, so the panel is one continuous surface rather than a stack of greys. */
+  --suite-canvas: oklch(1 0 0);
+  --suite-panel: oklch(0.995 0.001 70);
+  --suite-sunken: oklch(0.975 0.002 70);
+
+  /* Lines. */
+  --suite-line: oklch(0.912 0.003 70);
+  --suite-line-strong: oklch(0.848 0.004 70);
+
+  /* Ink. */
+  --suite-ink: oklch(0.24 0.004 70);
+  --suite-ink-muted: oklch(0.512 0.005 70);
+  --suite-ink-faint: oklch(0.642 0.004 70);
+
+  /* Accent, and the ink that has to stay legible on top of it. */
   --suite-accent: oklch(0.51 0.22 264);
+  --suite-on-accent: oklch(1 0 0);
+
+  /* `ink` doubles as a filled surface (buttons, badges), so it needs its own
+     legible counterpart — see the dark block for why it is not just white. */
+  --suite-on-ink: oklch(1 0 0);
+
+  /* Status palettes. One hue per meaning, so a chip is always the same colour for
+     the same reason. The soft background is *derived* with color-mix against the
+     canvas rather than declared, and that is what lets one class work in both
+     themes: the mix follows --suite-canvas, and the canvas flips. */
+  --suite-negative: oklch(0.54 0.19 26);
+  --suite-caution: oklch(0.62 0.14 75);
+  --suite-positive: oklch(0.52 0.14 152);
+  --suite-info: oklch(0.56 0.13 240);
+  --suite-grape: oklch(0.52 0.17 300);
+  --suite-accent-ink: oklch(0.46 0.19 272);
+  --suite-blush: oklch(0.58 0.16 10);
+
+  /* The scrim behind a modal. Unlike the palette above this does NOT change with
+     the theme: a dimming layer has to dim, and inverting it to a light wash
+     would bleach the page behind the dialog. */
+  --suite-scrim: oklch(0.16 0.004 70);
+
+  --suite-negative-soft: color-mix(in oklch, var(--suite-negative) 13%, var(--suite-canvas));
+  --suite-caution-soft: color-mix(in oklch, var(--suite-caution) 16%, var(--suite-canvas));
+  --suite-positive-soft: color-mix(in oklch, var(--suite-positive) 13%, var(--suite-canvas));
+  --suite-info-soft: color-mix(in oklch, var(--suite-info) 13%, var(--suite-canvas));
+  --suite-grape-soft: color-mix(in oklch, var(--suite-grape) 13%, var(--suite-canvas));
+  --suite-accent-soft: color-mix(in oklch, var(--suite-accent) 13%, var(--suite-canvas));
+  --suite-blush-soft: color-mix(in oklch, var(--suite-blush) 13%, var(--suite-canvas));
+
   --suite-radius: 0.5rem;
 }
 
+/*
+ * The dark scheme is designed, not derived: the light values are not inverted.
+ * Surfaces stay separated by two steps rather than one, the lines get lighter
+ * instead of darker so they still read as edges, and `on-ink` flips to near-black
+ * because in a dark theme a filled surface is a *light* one.
+ */
 .dark {
-  --suite-accent: oklch(0.65 0.19 264);
+  --suite-canvas: oklch(0.175 0.004 70);
+  --suite-panel: oklch(0.215 0.005 70);
+  --suite-sunken: oklch(0.26 0.005 70);
+
+  --suite-line: oklch(0.31 0.005 70);
+  --suite-line-strong: oklch(0.42 0.006 70);
+
+  --suite-ink: oklch(0.94 0.002 70);
+  --suite-ink-muted: oklch(0.74 0.004 70);
+  --suite-ink-faint: oklch(0.6 0.004 70);
+
+  --suite-accent: oklch(0.7 0.16 264);
+  --suite-on-accent: oklch(0.16 0.004 70);
+  --suite-on-ink: oklch(0.16 0.004 70);
+
+  --suite-negative: oklch(0.72 0.16 26);
+  --suite-caution: oklch(0.8 0.13 75);
+  --suite-positive: oklch(0.74 0.14 152);
+  --suite-info: oklch(0.74 0.11 240);
+  --suite-grape: oklch(0.74 0.13 300);
+  --suite-accent-ink: oklch(0.78 0.14 272);
+  --suite-blush: oklch(0.76 0.13 8);
 }
 
 @theme inline {
+  --color-canvas: var(--suite-canvas);
+  --color-panel: var(--suite-panel);
+  --color-sunken: var(--suite-sunken);
+  --color-line: var(--suite-line);
+  --color-line-strong: var(--suite-line-strong);
+  --color-ink: var(--suite-ink);
+  --color-ink-muted: var(--suite-ink-muted);
+  --color-ink-faint: var(--suite-ink-faint);
   --color-accent: var(--suite-accent);
+  --color-on-accent: var(--suite-on-accent);
+  --color-on-ink: var(--suite-on-ink);
+
+  --color-positive: var(--suite-positive);
+  --color-positive-soft: var(--suite-positive-soft);
+  --color-caution: var(--suite-caution);
+  --color-caution-soft: var(--suite-caution-soft);
+  --color-negative: var(--suite-negative);
+  --color-negative-soft: var(--suite-negative-soft);
+  --color-info: var(--suite-info);
+  --color-info-soft: var(--suite-info-soft);
+  --color-grape: var(--suite-grape);
+  --color-grape-soft: var(--suite-grape-soft);
+  --color-accent-ink: var(--suite-accent-ink);
+  --color-accent-soft: var(--suite-accent-soft);
+  --color-blush: var(--suite-blush);
+  --color-blush-soft: var(--suite-blush-soft);
+  --color-scrim: var(--suite-scrim);
+
   --radius-suite: var(--suite-radius);
 }
 
 /*
- * The typography below is scoped to the mount point, but Tailwind's *preflight*
- * is not: `@import 'tailwindcss'` emits it into the global base layer, and this
- * stylesheet is enqueued on the whole admin page. `isolation: isolate` only
- * stops our utilities leaking *out*, it does nothing about preflight leaking
- * *in*.
+ * White background for every suite page.
+ *
+ * `admin-suite-shell` is the class `AdminShell::bodyClass()` puts on the admin
+ * body, so this follows the suite automatically: any screen the suite takes over
+ * gets a white canvas without a per-page rule. Scoping it to `#wpcontent` and not
+ * to `body` keeps WordPress's own surfaces — the admin bar, the admin menu — on
+ * the colours core gives them, so this is a background and not a repaint.
+ *
+ * Known limitation while the chrome is still core's: `.dark` is applied to the
+ * mount point, not to `<body>`, so in the dark scheme this band above the mount
+ * stays white. It resolves itself as soon as the admin bar and the menu become
+ * ours, which is the agreed next step; flipping it now would put core's dark text
+ * on a dark background and make the page unreadable.
+ */
+body.admin-suite-shell #wpcontent {
+  background: var(--suite-canvas);
+}
+
+/*
+ * Typography and stacking are scoped to the mount point.
+ *
+ * Tailwind's *preflight* is not: `@import 'tailwindcss'` emits it into the global
+ * base layer and this stylesheet is enqueued on the whole admin page.
+ * `isolation: isolate` only stops our utilities leaking *out*, it does nothing
+ * about preflight leaking *in*.
  *
  * This used to matter much more. The suite was a separate page, so preflight
  * reset the chrome of whichever wp-admin page happened to be underneath it, and

@@ -9,7 +9,7 @@ const route = useRoute()
 <template>
   <section>
     <h1 class="text-xl font-semibold">{{ __('Not implemented yet') }}</h1>
-    <p class="mt-1 text-sm text-slate-500">
+    <p class="mt-1 text-sm text-ink-muted">
       {{
         sprintf(
           __('No SPA view is registered for %s. Add a route in src/router/index.ts.'),

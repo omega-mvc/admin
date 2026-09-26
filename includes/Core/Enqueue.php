@@ -141,7 +141,7 @@ final class Enqueue {
 				'admin-suite-app-' . $index,
 				$baseUrl . 'assets/dist/' . $handle,
 				array(),
-				ADMIN_SUITE_VERSION
+				$this->assetVersion( $baseDir . '/assets/dist/' . $handle )
 			);
 		}
 
@@ -149,11 +149,38 @@ final class Enqueue {
 			self::HANDLE,
 			$baseUrl . 'assets/dist/' . $entry['file'],
 			self::SCRIPT_DEPS,
-			ADMIN_SUITE_VERSION,
+			$this->assetVersion( $baseDir . '/assets/dist/' . $entry['file'] ),
 			true
 		);
 
 		$this->prepareScript();
+	}
+
+	/**
+	 * Cache-busting version for a built asset.
+	 *
+	 * The plugin version is the wrong thing to key on. It only moves when someone
+	 * remembers to move it, so two builds of the same plugin version produce the
+	 * same URL, and a browser that already fetched the first one never asks again.
+	 * That is not a development annoyance: a user who updates the plugin keeps the
+	 * old bundle and the old stylesheet until they empty the cache by hand, and
+	 * the site silently renders the previous design.
+	 *
+	 * Hashing the file ties the URL to the content, which is the only property
+	 * that matters for a build artifact. A fresh checkout still gets a correct
+	 * value, because the hash is derived from the bytes that were checked out.
+	 *
+	 * @param string $path Absolute path to the built file.
+	 * @return string Value for the `ver` argument of an enqueue call.
+	 */
+	private function assetVersion( string $path ): string {
+		$hash = md5_file( $path );
+
+		if ( false === $hash ) {
+			return ADMIN_SUITE_VERSION;
+		}
+
+		return $hash;
 	}
 
 	/**

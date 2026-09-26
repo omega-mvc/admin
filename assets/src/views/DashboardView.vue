@@ -144,25 +144,25 @@ const saveMessage = computed(() => {
     <header class="mb-5">
       <h1 class="text-xl font-semibold">{{ __('Dashboard') }}</h1>
 
-      <p v-if="data" class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      <p v-if="data" class="mt-1 text-sm text-ink-muted">
         <a :href="data.site.url" class="hover:text-accent">{{ data.site.name }}</a>
-        <span class="mx-1.5 text-slate-300 dark:text-slate-700">·</span>
+        <span class="mx-1.5 text-ink-faint">·</span>
         WordPress {{ data.site.version }}
-        <span class="mx-1.5 text-slate-300 dark:text-slate-700">·</span>
+        <span class="mx-1.5 text-ink-faint">·</span>
         PHP {{ data.site.php }}
-        <span class="mx-1.5 text-slate-300 dark:text-slate-700">·</span>
+        <span class="mx-1.5 text-ink-faint">·</span>
         {{ data.site.language }}
       </p>
     </header>
 
-    <div v-if="query.isLoading.value" class="flex items-center gap-2 py-16 text-sm text-slate-500">
+    <div v-if="query.isLoading.value" class="flex items-center gap-2 py-16 text-sm text-ink-muted">
       <Loader2 class="size-4 animate-spin" aria-hidden="true" />
       {{ __('Loading dashboard…') }}
     </div>
 
     <div
       v-else-if="query.isError.value"
-      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+      class="rounded-lg border border-negative bg-negative-soft p-4 text-sm text-negative"
     >
       <p class="font-medium">{{ __('The dashboard could not be loaded.') }}</p>
       <p class="mt-1">{{ query.error.value?.message }}</p>
@@ -179,9 +179,7 @@ const saveMessage = computed(() => {
       <div class="mb-3 flex min-h-6 items-center gap-3">
         <p
           class="flex items-center gap-1.5 text-xs"
-          :class="
-            saveFailed ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'
-          "
+          :class="saveFailed ? 'text-caution' : 'text-ink-muted'"
           role="status"
           aria-live="polite"
         >
@@ -194,7 +192,7 @@ const saveMessage = computed(() => {
           <button
             v-if="!isDefaultLayout"
             type="button"
-            class="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
             @click="reset()"
           >
             <RotateCcw class="size-3.5" aria-hidden="true" />
@@ -203,7 +201,7 @@ const saveMessage = computed(() => {
 
           <button
             type="button"
-            class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            class="rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
             @click="query.refetch()"
           >
             {{ __('Refresh') }}
@@ -225,7 +223,7 @@ const saveMessage = computed(() => {
             spanClass[panel.widget.span] ?? '@2xl:col-span-1 @5xl:col-span-1',
             draggingId === panel.widget.id ? 'opacity-40' : '',
             dropTargetId === panel.widget.id
-              ? 'ring-2 ring-accent ring-offset-2 dark:ring-offset-slate-950'
+              ? 'ring-2 ring-accent ring-offset-2 ring-offset-canvas'
               : '',
           ]"
           draggable="true"
@@ -267,9 +265,9 @@ const saveMessage = computed(() => {
 
       <section
         v-if="hiddenPanels.length > 0"
-        class="mt-5 rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700"
+        class="mt-5 rounded-lg border border-dashed border-line p-3"
       >
-        <h2 class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-ink-muted">
           {{ __('Hidden panels') }}
         </h2>
 
@@ -277,7 +275,7 @@ const saveMessage = computed(() => {
           <li v-for="panel in hiddenPanels" :key="panel.widget.id">
             <button
               type="button"
-              class="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
               @click="toggle(panel.widget.id)"
             >
               <Eye class="size-3.5" aria-hidden="true" />

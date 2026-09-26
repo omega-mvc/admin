@@ -34,15 +34,13 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="rounded-md border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900"
-  >
+  <div class="rounded-md border border-line bg-panel p-4 text-sm">
     <fieldset class="min-w-0">
-      <legend class="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <legend class="mb-2 text-sm font-semibold text-ink">
         {{ __('Dashboard panels') }}
       </legend>
 
-      <p class="mb-3 text-slate-600 dark:text-slate-400">
+      <p class="mb-3 text-ink-muted">
         {{ __('Tick a panel to show it on the dashboard. Changes save automatically.') }}
       </p>
 
@@ -54,28 +52,22 @@ const emit = defineEmits<{
           >
             <input
               :id="`panel-toggle-${panel.widget.id}`"
-              class="size-4 shrink-0 rounded-sm border-slate-300 text-accent focus:ring-accent"
+              class="size-4 shrink-0 rounded-sm border-line text-accent focus:ring-accent"
               type="checkbox"
               :checked="panel.visible"
               :disabled="!canEdit || isSaving"
               @change="emit('toggle', panel.widget.id)"
             />
-            <span class="truncate text-slate-700 dark:text-slate-300">{{
-              panel.widget.title
-            }}</span>
+            <span class="truncate text-ink">{{ panel.widget.title }}</span>
           </label>
         </li>
       </ul>
     </fieldset>
 
-    <div
-      class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-800"
-    >
-      <p class="text-xs text-slate-500 dark:text-slate-400" aria-live="polite" role="status">
+    <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+      <p class="text-xs text-ink-muted" aria-live="polite" role="status">
         <template v-if="saveFailed">
-          <span class="text-rose-600 dark:text-rose-400">{{
-            sprintf(__('Not saved: %s'), saveError ?? '')
-          }}</span>
+          <span class="text-blush">{{ sprintf(__('Not saved: %s'), saveError ?? '') }}</span>
         </template>
         <template v-else-if="isSaving">
           <span class="inline-flex items-center gap-1.5"
@@ -89,7 +81,7 @@ const emit = defineEmits<{
       </p>
 
       <button
-        class="ml-auto inline-flex items-center gap-1.5 rounded-sm border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="ml-auto inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-xs text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-50"
         type="button"
         :disabled="!canEdit || isDefaultLayout || isSaving"
         @click="emit('reset')"
