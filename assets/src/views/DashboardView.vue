@@ -75,8 +75,8 @@ function clearDrag(): void {
  * Column span per `span` value, mirroring `DashboardController::spanOf()`.
  *
  * Container variants (`@…:`) rather than viewport ones: this grid sits inside
- * `<main class="@container">`, whose width shrinks by the sidebar's 16rem while
- * the viewport stays the same. The classes must cover every tier, because a
+ * the `@container` wrapper in App.vue, whose width shrinks by 16rem when core's
+ * menu folds, while the viewport stays the same. The classes must cover every tier, because a
  * panel that spans 3 but whose tier only offers 2 columns would either overflow
  * or be silently clamped to a single column.
  */
