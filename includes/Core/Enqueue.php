@@ -29,16 +29,19 @@ final class Enqueue {
 	/**
 	 * Text domain of the plugin. Must match the `Text Domain` header.
 	 */
+	private const TEXT_DOMAIN = 'admin-suite';
+
 	/**
 	 * Admin bar nodes the documentation menu should open in a new tab.
 	 *
-	 * Core's own node ids, so the toolbar never has to hardcode them.
+	 * Core's own node ids, so the toolbar never has to hardcode them. Every one
+	 * of them leaves this site, and that is not a coincidence: the two entries
+	 * that do not are `about` and `contribute`, and both point at admin screens
+	 * of their own rather than at a website, so they belong in the same tab.
 	 *
 	 * @var list<string>
 	 */
-	private const NEW_TAB = array( 'contribute', 'wporg', 'documentation', 'learn', 'support-forums', 'feedback' );
-
-	private const TEXT_DOMAIN = 'admin-suite';
+	private const NEW_TAB = array( 'wporg', 'documentation', 'learn', 'support-forums', 'feedback' );
 
 	/**
 	 * Handle the SPA depends on.
@@ -462,12 +465,12 @@ final class Enqueue {
 	 * needs no test of its own.
 	 *
 	 * The node ids in `NEW_TAB` are the ones the toolbar opens in a new tab, so
-	 * the SPA never has to hardcode core's ids. The list turns out to be exactly
-	 * the nodes whose href leaves this site, and `about` is the exception that
-	 * proves it: `about` points at `wp-admin/about.php`, the About WordPress
-	 * *screen*, which is an admin page rather than a wordpress.org destination, so
-	 * it stays in the same tab. The ids are spelled out rather than computed from
-	 * the hosts so the behaviour is readable in one place.
+	 * the SPA never has to hardcode core's ids. They are the five entries whose
+	 * href leaves this site. The two that stay in the same tab both point at
+	 * admin screens rather than at a website: About WordPress is
+	 * `wp-admin/about.php` and Get Involved is `wp-admin/contribute.php`. That
+	 * pair is worth reading before changing the list, because both entries look
+	 * like documentation links from the label alone.
 	 *
 	 * @return array{label: string, items: list<array{id: string, label: string, url: string, newTab: bool}>}
 	 */
