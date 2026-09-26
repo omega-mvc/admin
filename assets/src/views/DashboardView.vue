@@ -2,44 +2,25 @@
 import { computed, ref } from 'vue'
 
 import { useQueryClient } from '@tanstack/vue-query'
-import { AlertTriangle, Loader2, RotateCcw, SlidersHorizontal } from 'lucide-vue-next'
+import { Loader2 } from 'lucide-vue-next'
 
 import type { Panel } from '@/composables/useDashboard'
 import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
 import NativeWidgetBody from '@/components/dashboard/NativeWidgetBody.vue'
 import PanelCard from '@/components/dashboard/PanelCard.vue'
 import RecentPostsList from '@/components/dashboard/RecentPostsList.vue'
-import ScreenOptionsPanel from '@/components/dashboard/ScreenOptionsPanel.vue'
 import StatTiles from '@/components/dashboard/StatTiles.vue'
 import { isSuitePanel } from '@/components/dashboard/panels'
 import { nativeWidgetKey, useDashboard } from '@/composables/useDashboard'
-import { RestError } from '@/services/rest'
-import { __, _n, sprintf } from '@/utils/i18n'
+import { __ } from '@/utils/i18n'
 
 /*
  * Destructured rather than namespaced behind `dashboard.`: the refs are then
  * top-level bindings, which templates unwrap automatically.
  */
-const {
-  query,
-  panels,
-  visiblePanels,
-  hiddenCount,
-  isDefaultLayout,
-  isSaving,
-  saveFailed,
-  saveError,
-  canMove,
-  move,
-  reorder,
-  toggle,
-  reset,
-} = useDashboard()
+const { query, visiblePanels, canMove, move, reorder, toggle } = useDashboard()
 
 const queryClient = useQueryClient()
-
-/** Open state for the Screen Options panel. */
-const showOptions = ref(false)
 
 const data = computed(() => query.data.value)
 
@@ -119,47 +100,6 @@ function isRefreshing(panel: Panel): boolean {
     isNative(panel) && queryClient.isFetching({ queryKey: nativeWidgetKey(panel.widget.id) }) > 0
   )
 }
-
-/**
- * `useDashboard` hands back the raw TanStack error, which is an object.
- * `ScreenOptionsPanel` wants a string, because it only ever prints it.
- */
-const saveErrorText = computed<string | null>(() => {
-  const error = saveError.value
-
-  if (!error) {
-    return null
-  }
-
-  return error instanceof Error ? error.message : String(error)
-})
-
-const saveMessage = computed(() => {
-  if (saveFailed.value) {
-    const error = saveError.value
-
-    if (error instanceof RestError && error.isAuthError) {
-      return __('Session expired — reload the page, then try again.')
-    }
-
-    return __('Layout not saved — the previous layout was restored.')
-  }
-
-  if (isSaving.value) {
-    return __('Saving layout…')
-  }
-
-  if (hiddenCount.value > 0) {
-    return sprintf(_n('%s panel hidden', '%s panels hidden', hiddenCount.value), hiddenCount.value)
-  }
-
-  /*
-   * Empty when there is nothing to report. The status line used to rest on
-   * 'Layout saved', which is not a message: it described an absence, it never
-   * appeared because something happened, and it sat permanently above the grid.
-   */
-  return ''
-})
 </script>
 
 <template>
@@ -185,66 +125,6 @@ const saveMessage = computed(() => {
     </div>
 
     <template v-else-if="data">
-      <div class="mb-3 flex min-h-6 items-center gap-3">
-        <p
-          v-if="saveMessage"
-          class="flex items-center gap-1.5 text-xs"
-          :class="saveFailed ? 'text-caution' : 'text-ink-muted'"
-          role="status"
-          aria-live="polite"
-        >
-          <AlertTriangle v-if="saveFailed" class="size-3.5" aria-hidden="true" />
-          <Loader2 v-else-if="isSaving" class="size-3.5 animate-spin" aria-hidden="true" />
-          {{ saveMessage }}
-        </p>
-
-        <div class="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
-            :aria-expanded="showOptions"
-            aria-controls="screen-options"
-            @click="showOptions = !showOptions"
-          >
-            <SlidersHorizontal class="size-3.5" aria-hidden="true" />
-            {{ __('Screen Options') }}
-          </button>
-
-          <button
-            v-if="!isDefaultLayout"
-            type="button"
-            class="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
-            @click="reset()"
-          >
-            <RotateCcw class="size-3.5" aria-hidden="true" />
-            {{ __('Reset layout') }}
-          </button>
-
-          <button
-            type="button"
-            class="rounded-md border border-line px-2.5 py-1 text-xs text-ink-muted hover:bg-sunken"
-            @click="query.refetch()"
-          >
-            {{ __('Refresh') }}
-          </button>
-        </div>
-      </div>
-
-      <ScreenOptionsPanel
-        v-if="showOptions"
-        id="screen-options"
-        class="mb-4"
-        :panels="panels"
-        :hidden-count="hiddenCount"
-        :is-saving="isSaving"
-        :is-default-layout="isDefaultLayout"
-        :save-failed="saveFailed"
-        :save-error="saveErrorText"
-        :can-edit="true"
-        @toggle="toggle"
-        @reset="reset()"
-      />
-
       <!--
         Two columns from 42rem of *content* width, three from 64rem. The widest
         realistic content area (1440px viewport, sidebar collapsed, minus
