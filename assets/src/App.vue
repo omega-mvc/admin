@@ -15,6 +15,23 @@ import { __, sprintf } from '@/utils/i18n'
 
 const app = useAppStore()
 
+/*
+ * Core's two admin menu widths, both read out of wp-admin rather than guessed:
+ * `admin-menu.css` hides the menu below 782px, and `common.js` makes
+ * `#collapse-button` toggle `auto-fold` instead of `folded` below 960px. They
+ * are not the same threshold and both of them matter here.
+ */
+const HIDDEN_BELOW = 782
+const COLLAPSE_TOGGLES_AUTO_FOLD = 960
+
+/*
+ * The one class the responsive CSS listens to for bringing the menu back, and
+ * the element core puts it on. `wpResponsive.activate()` adds `auto-fold`
+ * itself below 782px, for every user, whatever the stored `unfold` setting says.
+ */
+const WRAP_ID = 'wpwrap'
+const RESPONSIVE_OPEN = 'wp-responsive-open'
+
 /**
  * Whether WordPress's own admin menu is folded.
  *
@@ -25,10 +42,29 @@ const app = useAppStore()
  * because `admin-header.php` re-applies that class from the stored setting on
  * every single request.
  *
- * Below 960px WordPress auto-folds and that same button toggles `auto-fold`
- * instead of `folded`, so both classes are consulted.
+ * Below 960px that same button toggles `auto-fold` instead of `folded`, so both
+ * classes are consulted.
+ *
+ * Below 782px it is bypassed entirely, because from there `#collapse-button`
+ * cannot open the menu: `admin-menu.css` puts `display: none` on it and only
+ * `wp-responsive-open` brings it back. Core's own toggle for that lived in the
+ * admin bar, which the suite removes, so this button does it instead.
  */
 const menuFolded = ref(false)
+
+function isAtMost(width: number): boolean {
+  return (
+    typeof window.matchMedia === 'function' && window.matchMedia(`(max-width: ${width}px)`).matches
+  )
+}
+
+function menuIsHiddenByCore(): boolean {
+  return isAtMost(HIDDEN_BELOW)
+}
+
+function menuIsResponsiveOpen(): boolean {
+  return !!document.getElementById(WRAP_ID)?.classList.contains(RESPONSIVE_OPEN)
+}
 
 function readMenuState(): void {
   const body = document.body
@@ -37,11 +73,25 @@ function readMenuState(): void {
     return
   }
 
-  const narrow =
-    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 960px)').matches
+  const hidden = menuIsHiddenByCore()
 
-  menuFolded.value =
-    body.classList.contains('folded') || (narrow && body.classList.contains('auto-fold'))
+  /*
+   * Core's `deactivate()` leaves `wp-responsive-open` on the wrapper, so a menu
+   * opened on a phone would still count as open on the way back down. The class
+   * only affects anything while the CSS reading it is in range, so dropping it
+   * above 782px is enough.
+   */
+  if (!hidden) {
+    document.getElementById(WRAP_ID)?.classList.remove(RESPONSIVE_OPEN)
+  }
+
+  if (hidden) {
+    menuFolded.value = !menuIsResponsiveOpen()
+  } else {
+    menuFolded.value =
+      body.classList.contains('folded') ||
+      (isAtMost(COLLAPSE_TOGGLES_AUTO_FOLD) && body.classList.contains('auto-fold'))
+  }
 
   if (!menuFolded.value) {
     newMenuOpen.value = false
@@ -49,6 +99,19 @@ function readMenuState(): void {
 }
 
 function toggleMenu(): void {
+  /*
+   * `wp-responsive-open` rather than `auto-fold`, because `wpResponsive.trigger()`
+   * puts `auto-fold` straight back on the next resize. `activate()` never removes
+   * `wp-responsive-open`, which is also why a menu core opened itself could stay
+   * open across a rotation.
+   */
+  if (menuIsHiddenByCore()) {
+    document.getElementById(WRAP_ID)?.classList.toggle(RESPONSIVE_OPEN)
+    readMenuState()
+
+    return
+  }
+
   document.getElementById('collapse-button')?.click()
 }
 
