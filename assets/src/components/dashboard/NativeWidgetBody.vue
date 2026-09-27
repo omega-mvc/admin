@@ -4,12 +4,22 @@ import { computed, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 
 import type { NativeWidgetResponse } from '@/types/api'
+import { WELCOME_PANEL_ID } from '@/components/dashboard/panels'
 import { nativeWidgetKey } from '@/composables/useDashboard'
 import { rest } from '@/services/rest'
 import { __ } from '@/utils/i18n'
 
 const props = defineProps<{
   id: string
+}>()
+
+/**
+ * Raised when the widget asks to be taken off the dashboard. Not core's
+ * `?welcome=0` dismiss: nothing is written to `show_welcome_panel`, the panel
+ * simply leaves the suite's own layout like any other widget.
+ */
+const emit = defineEmits<{
+  dismiss: []
 }>()
 
 /**
@@ -82,6 +92,40 @@ watch(html, (value) => {
     armCoreHandlers()
   }
 })
+
+/**
+ * Take the welcome panel off the dashboard without reloading.
+ *
+ * Its "Dismiss" link carries `href="?welcome=0"`, which navigates: the page
+ * reloads and core writes `show_welcome_panel = 0`, a per-user setting the
+ * suite never reads back. Two things are wrong with that here. It is slower,
+ * and it hides the panel in a store the suite does not use, so the Screen
+ * Options box — which is built from `admin_suite_dashboard_layout` — would
+ * still list the panel as visible while the page had it gone.
+ *
+ * Intercepting the click and raising `dismiss` instead sends the panel through
+ * the same `toggle` every other widget uses, so it leaves the grid and turns up
+ * in the box, where the pill puts it back.
+ *
+ * Scoped to this widget's id on purpose. The class is core's, but only this
+ * widget can contain the link, and the guard keeps every other native widget on
+ * the same code path without a per-widget special case.
+ */
+function onClick(event: MouseEvent): void {
+  if (props.id !== WELCOME_PANEL_ID) {
+    return
+  }
+
+  const target = event.target
+
+  if (!(target instanceof Element) || !target.closest('.welcome-panel-close')) {
+    return
+  }
+
+  event.preventDefault()
+
+  emit('dismiss')
+}
 </script>
 
 <template>
@@ -104,7 +148,7 @@ watch(html, (value) => {
       own JavaScript addresses a widget by them, and writes the reply to a save
       into `#dashboard_quick_press .inside`.
     -->
-    <div v-if="html !== ''" :id="id" class="suite-native-widget text-sm">
+    <div v-if="html !== ''" :id="id" class="suite-native-widget text-sm" @click="onClick">
       <!--
         Deliberate: the trust boundary is documented above. This is the same
         markup, from the same PHP callback, for the same user that WordPress

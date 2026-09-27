@@ -904,7 +904,7 @@ final class DashboardController {
 	 *
 	 * @param list<string>     $known           Registered widget ids.
 	 * @param list<mixed>|null $layout      Proposed layout, or null to use the stored one.
-	 * @return list<array{id: string, visible: bool}>
+	 * @return list<array{id: string, visible: bool, collapsed: bool}>
 	 */
 	private function reconcileLayout( array $known, ?array $layout = null ): array {
 		$rows = null === $layout ? $this->storedLayout() : $layout;
@@ -924,16 +924,18 @@ final class DashboardController {
 
 			$seen[ $id ] = true;
 			$out[]       = array(
-				'id'      => $id,
-				'visible' => ! is_array( $row ) || ! isset( $row['visible'] ) || (bool) $row['visible'],
+				'id'        => $id,
+				'visible'   => ! is_array( $row ) || ! isset( $row['visible'] ) || (bool) $row['visible'],
+				'collapsed' => is_array( $row ) && isset( $row['collapsed'] ) && (bool) $row['collapsed'],
 			);
 		}
 
 		foreach ( $known as $id ) {
 			if ( ! isset( $seen[ $id ] ) ) {
 				$out[] = array(
-					'id'      => $id,
-					'visible' => true,
+					'id'        => $id,
+					'visible'   => true,
+					'collapsed' => false,
 				);
 			}
 		}
@@ -946,7 +948,7 @@ final class DashboardController {
 	 *
 	 * @param array<mixed> $layout Raw payload.
 	 * @param list<string> $known  Registered widget ids.
-	 * @return list<array{id: string, visible: bool}>
+	 * @return list<array{id: string, visible: bool, collapsed: bool}>
 	 */
 	private function sanitizeLayout( array $layout, array $known ): array {
 		$clean = array();
@@ -961,8 +963,9 @@ final class DashboardController {
 			}
 
 			$clean[] = array(
-				'id'      => $row['id'],
-				'visible' => ! isset( $row['visible'] ) || (bool) $row['visible'],
+				'id'        => $row['id'],
+				'visible'   => ! isset( $row['visible'] ) || (bool) $row['visible'],
+				'collapsed' => isset( $row['collapsed'] ) && (bool) $row['collapsed'],
 			);
 		}
 

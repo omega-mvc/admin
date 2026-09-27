@@ -7,6 +7,7 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
+  Settings,
 } from 'lucide-vue-next'
 
 import CommandPalette from '@/components/CommandPalette.vue'
@@ -164,6 +165,25 @@ function toggleDocs(): void {
   newMenuOpen.value = false
 }
 
+/*
+ * Core closes the menu on an outside click at `common.js:1789`, and the logic
+ * there is sound: below 782px, with the menu open, a click that lands outside
+ * both the toggle and `#adminmenuwrap` should close it. What it then does is
+ * `$( '#wp-admin-bar-menu-toggle' ).trigger( 'click.wp-responsive' )`, and that
+ * element lived in the admin bar the suite removes, so the handler decides
+ * correctly and then does nothing. This is the same rule, carried out directly.
+ *
+ * The toggle is excluded for the same reason core excludes it: it is inside the
+ * menu that is being closed, and without that the click would close the menu
+ * and the button's own handler would immediately open it again.
+ *
+ * `pointerdown` rather than `click` because it is the same phase core's other
+ * outside-click rules already use here, and it fires before the click can land
+ * anywhere. Core's extra `document.hasFocus()` guard is not reproduced: a real
+ * pointer press implies focus, and it is there to protect a focus-driven path.
+ */
+const menuToggleRef = ref<HTMLElement | null>(null)
+
 function onPointerDown(event: MouseEvent): void {
   const target = event.target as Node
 
@@ -173,6 +193,16 @@ function onPointerDown(event: MouseEvent): void {
 
   if (!docsRef.value?.contains(target)) {
     docsOpen.value = false
+  }
+
+  if (menuIsHiddenByCore() && menuIsResponsiveOpen()) {
+    const insideMenu = !!document.getElementById('adminmenuwrap')?.contains(target)
+    const insideToggle = !!menuToggleRef.value?.contains(target)
+
+    if (!insideMenu && !insideToggle) {
+      document.getElementById(WRAP_ID)?.classList.remove(RESPONSIVE_OPEN)
+      readMenuState()
+    }
   }
 }
 
@@ -241,6 +271,7 @@ onBeforeUnmount(() => {
     <div class="@container min-w-0 p-6">
       <div class="mb-4 flex items-center gap-2">
         <button
+          ref="menuToggleRef"
           type="button"
           class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-ink-muted hover:bg-sunken"
           :aria-label="menuFolded ? __('Expand the main menu') : __('Collapse the main menu')"
@@ -298,6 +329,32 @@ onBeforeUnmount(() => {
           <!-- `@2xl` is Tailwind's default container scale: 42rem, the same width the grid goes to two columns. -->
           <span class="hidden @2xl:inline">{{ __('Search…') }}</span>
           <kbd class="hidden rounded border border-line px-1 text-[10px] @2xl:inline">⌘K</kbd>
+        </button>
+
+        <!--
+          Screen Options, rebuilt as part of the suite rather than borrowed from
+          core: core's own panel is a separate screen and its three controls are
+          gone since `4a6b63b` and `b136c2f`. Sits between the search field and
+          the front-end link, in the gap where nothing else competes for the
+          eye.
+
+          The panel itself is rendered by `DashboardView`, because the widget
+          list belongs to `useDashboard()`. Only the open flag lives here, in
+          the store, since the button and the panel are different components.
+
+          Clicking the icon again is the one way to close it: the panel never
+          closes on Escape or on a click outside, which is what the panel was
+          specified to do.
+        -->
+        <button
+          type="button"
+          class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-ink-muted hover:bg-sunken"
+          :aria-label="__('Screen Options')"
+          :aria-expanded="app.screenOptionsOpen"
+          :aria-controls="app.screenOptionsOpen ? 'suite-screen-options' : undefined"
+          @click="app.toggleScreenOptions()"
+        >
+          <Settings class="size-4" aria-hidden="true" />
         </button>
 
         <!--

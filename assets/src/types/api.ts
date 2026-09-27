@@ -108,6 +108,15 @@ export interface DashboardWidget {
 export interface WidgetLayoutEntry {
   id: string
   visible: boolean
+  /**
+   * Whether the panel is folded down to its header.
+   *
+   * Distinct from `visible`: a collapsed panel is still on the dashboard and
+   * still counted, it just is not showing its body. The server always sends the
+   * key — `DashboardController::reconcileLayout()` fills it in — so this is
+   * required rather than optional.
+   */
+  collapsed: boolean
 }
 
 export interface DashboardResponse {

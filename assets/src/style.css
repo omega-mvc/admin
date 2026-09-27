@@ -248,3 +248,150 @@ body.admin-suite-shell #screen-options-link-wrap {
     sans-serif;
   line-height: 1.5;
 }
+
+/*
+ * Core draws the tick on a checkbox with a pseudo element whose geometry is
+ * hard-coded for a 25px box, in three unlayered rules that all have to move
+ * together:
+ *
+ *   wp-admin/css/forms.css:1632-5   the box, 25x25
+ *   wp-admin/css/forms.css:195-6   the tick, 21x21
+ *   wp-admin/css/forms.css:194     its offset, -3px down, -4px in
+ *
+ * `PanelCard` shrinks the box to 12.5px — half of core's 25 — with
+ * `size-[12.5px]! min-w-0!`, because core's `min-width: 1rem` at
+ * `forms.css:143` otherwise clamps the width back to 16px and the control
+ * renders as a 16x8 rectangle. Leaving the tick at 21px while the box is 12.5
+ * leaves it hanging outside, and what shows is a white sliver along the bottom
+ * edge. So the tick is scaled by the same factor, 21px -> 10.5px.
+ *
+ * Its *position* is not scaled, though. Core's offsets were tuned against a
+ * 25px box and do not scale linearly, so halving them put the tick visibly off
+ * centre. Centring is therefore done by construction rather than by
+ * arithmetic: absolute positioning with `inset: 0` and `margin: auto` centres
+ * the tick in the input's padding box whatever size the box turns out to be,
+ * and `position: relative` on the input is what makes it the containing block.
+ * That also makes core's `float: left` and its negative margins inert.
+ *
+ * What this cannot remove is the dashicon's own skew. The tick is an inline
+ * SVG with `viewBox='0 0 20 20'`, and its path measures
+ *
+ *   M14.83 4.89 l1.34 .94 -5.81 8.38 H9.02 L5.78 9.67 l1.34 -1.25 l2.57 2.4 z
+ *
+ * whose bounding box is x 5.78..16.17, y 4.89..14.21. Its centre is
+ * (10.975, 9.550) against a viewBox centre of (10, 10), so the glyph itself
+ * sits 0.975 units right and 0.45 up — 0.51px and 0.24px at this scale, and
+ * below what the eye can pick out. Worth knowing before chasing it: a tick that
+ * looks properly off centre is this rule's fault, not the SVG's.
+ *
+ * Not `transform: scale()`, which would have carried the tick along for free:
+ * the layout box would still have measured 25px, so the control would have sat
+ * in the header's gap with 12.5px of dead space either side of it.
+ *
+ * The id keeps this off every other checkbox on the admin page, and the
+ * specificity over core's `input[type="checkbox"]:checked::before` is what lets
+ * it win without `!important` — both stylesheets are unlayered, so order and
+ * layer cannot decide it.
+ */
+#dashboard-widgets-wrap input[type='checkbox'] {
+  position: relative;
+}
+
+#dashboard-widgets-wrap input[type='checkbox']:checked::before {
+  position: absolute;
+  inset: 0;
+  width: 0.65625rem;
+  height: 0.65625rem;
+  margin: auto;
+}
+
+/*
+ * The welcome panel's close control, and the two lines of text under it.
+ *
+ * `dashboard.css:148-275` and its `@media` blocks set the panel up for a
+ * viewport. `.welcome-panel-header` is `padding: 48px 0 80px 48px` -- no right
+ * padding at any width above 600px -- and the close control is
+ * `position: absolute; top: 10px; right: 10px`. So the heading and the version
+ * line both run to the very edge of the panel and the "!" of "Welcome to
+ * WordPress!" lands on it, with the control parked over the corner above. Core
+ * only makes that padding symmetric at `max-width: 600px`, where it switches to
+ * `padding: 32px 32px 64px`.
+ *
+ * The suite renders this panel inside a card, so that edge is a card edge and it
+ * shows. Two changes, both of them taking something away rather than adding:
+ *
+ * 1. The label goes. The anchor already carries
+ *    `aria-label="Dismiss the welcome panel"`, so the visible word is redundant
+ *    for a screen reader as well as for the eye, and `font-size: 0` collapses
+ *    it without touching the cross. The cross is a pseudo element, and
+ *    `dashboard.css:231` sets `font-size: 24px` on the pseudo element itself, so
+ *    the `1em` box it gets from `common.css:825-839` stays 24x24 whatever the
+ *    anchor's own size becomes. The padding drops to 6px, which keeps a 36x36
+ *    target and, more to the point, ends the control at y=46 -- above the 48px
+ *    padding-top where the heading's line box starts, so the two cannot collide
+ *    at any width.
+ *
+ * 2. The header's horizontal padding becomes a card's, 16px, where core's is
+ *    48px at every width above 600px and 32px below. That padding is the only
+ *    thing placing those two texts on the panel: nothing in core right-aligns
+ *    them -- there is no `text-align` on any `.welcome-panel` rule in
+ *    `dashboard.css` -- so their position is decided entirely by it, and 48px
+ *    inside a card reads as a paragraph shoved to the right. One declaration
+ *    covers the heading and the version line alike. It is `padding-inline` so
+ *    the mirroring in `dashboard-rtl.css` happens by itself.
+ *
+ *    The right side used to be the one that mattered, because the heading ran
+ *    flush to the edge and the "!" landed on it. Adding room there was not
+ *    enough: the texts are left-aligned, so right padding only decides where
+ *    they wrap, and the indent that reads as "too far right" is the left one.
+ *    The control no longer needs that room either, since the 6px padding above
+ *    already lifts it clear of the heading's line box, so the two sides can go
+ *    back to being equal.
+ *
+ *    The background image is unaffected throughout: it is absolutely
+ *    positioned against the header's padding box, so `right: 0` still bleeds all
+ *    the way out whatever the padding is.
+ *
+ * Below 782px the control also needs unclipping, which is the device core's own
+ * comment explains -- it exists "to keep the close icon from overlapping the
+ * Welcome text", a reservation of room for a panel as wide as the viewport. A
+ * card has no viewport to be wide of, so the reservation is all that survives:
+ * `overflow: hidden`, a 20x20 box and `text-indent: 40px` push the label out,
+ * and a 24x24 glyph at `left: -35px` lies wholly outside the padding box that
+ * clips it. `overflow: visible`, `width`/`height: auto` and `position: static`
+ * on the pseudo element give it back its desktop shape, lined up by the
+ * anchor's own `align-items: center` (`dashboard.css:216`).
+ *
+ * The trade is stated rather than hidden: the control holds the top-right
+ * corner, and the heading now starts closer to the left edge than core puts it,
+ * so the two sit further apart than core intended rather than closer. A control
+ * that is there beats one that is not, and a control of our own is not ours to
+ * draw.
+ *
+ * The id beats core's two-class selectors without `!important`, both stylesheets
+ * being unlayered, and keeps all of this off any other close link on the admin
+ * page. If core ever fixes it, these rules become redundant.
+ */
+#dashboard-widgets-wrap .welcome-panel .welcome-panel-close {
+  font-size: 0;
+  padding: 6px;
+}
+
+#dashboard-widgets-wrap .welcome-panel .welcome-panel-header {
+  padding-inline: 16px;
+}
+
+@media screen and (max-width: 782px) {
+  #dashboard-widgets-wrap .welcome-panel .welcome-panel-close {
+    overflow: visible;
+    text-indent: 0;
+    width: auto;
+    height: auto;
+    top: 10px;
+    right: 10px;
+  }
+
+  #dashboard-widgets-wrap .welcome-panel .welcome-panel-close::before {
+    position: static;
+  }
+}

@@ -9,16 +9,38 @@ import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
 import NativeWidgetBody from '@/components/dashboard/NativeWidgetBody.vue'
 import PanelCard from '@/components/dashboard/PanelCard.vue'
 import RecentPostsList from '@/components/dashboard/RecentPostsList.vue'
+import ScreenOptionsPanel from '@/components/dashboard/ScreenOptionsPanel.vue'
 import StatTiles from '@/components/dashboard/StatTiles.vue'
-import { isSuitePanel } from '@/components/dashboard/panels'
+import { WELCOME_PANEL_ID, isSuitePanel } from '@/components/dashboard/panels'
 import { nativeWidgetKey, useDashboard } from '@/composables/useDashboard'
+import { useAppStore } from '@/stores'
 import { __ } from '@/utils/i18n'
 
 /*
  * Destructured rather than namespaced behind `dashboard.`: the refs are then
  * top-level bindings, which templates unwrap automatically.
+ *
+ * The panel is rendered here, not in the toolbar, and that placement is forced:
+ * `useDashboard()` keeps its optimistic draft in a local ref, so a second call
+ * from `App.vue` would be a second, independent draft and the grid would not
+ * react to a widget taken off the dashboard. One instance, one draft.
  */
-const { query, visiblePanels, canMove, move, reorder, toggle } = useDashboard()
+const {
+  query,
+  visiblePanels,
+  hiddenPanels,
+  canMove,
+  move,
+  reorder,
+  toggle,
+  toggleCollapsed,
+  isSaving,
+} = useDashboard()
+
+const app = useAppStore()
+
+/** Mirrors `Enqueue`'s capability read; the dashboard payload does not carry it. */
+const canEdit = window.ADMIN_SUITE_BOOTSTRAP?.canEdit ?? false
 
 const queryClient = useQueryClient()
 
@@ -126,6 +148,21 @@ function isRefreshing(panel: Panel): boolean {
 
     <template v-else-if="data">
       <!--
+        Sits above the grid, which reads as directly below the toolbar that owns
+        the button. `mb-4` is on the wrapper rather than the grid so the grid
+        keeps its own class list untouched.
+      -->
+      <div v-if="app.screenOptionsOpen" class="mb-4">
+        <ScreenOptionsPanel
+          id="suite-screen-options"
+          :hidden="hiddenPanels"
+          :is-saving="isSaving"
+          :can-edit="canEdit"
+          @toggle="toggle"
+        />
+      </div>
+
+      <!--
         Two columns from 42rem of *content* width, three from 64rem. The widest
         realistic content area (1440px viewport, sidebar collapsed, minus
         padding) is ~87rem, so three columns is the ceiling.
@@ -154,8 +191,14 @@ function isRefreshing(panel: Panel): boolean {
             :down-disabled="!canMove(panel.widget.id, 1)"
             :refreshable="isNative(panel)"
             :refreshing="isRefreshing(panel)"
+            :show-toggle="app.screenOptionsOpen && panel.widget.id !== WELCOME_PANEL_ID"
+            :collapsible="panel.widget.id !== WELCOME_PANEL_ID"
+            :movable="panel.widget.id !== WELCOME_PANEL_ID"
+            :collapsed="panel.collapsed"
+            :visible="panel.visible"
             @move="move(panel.widget.id, $event)"
             @toggle="toggle(panel.widget.id)"
+            @fold="toggleCollapsed(panel.widget.id)"
             @refresh="refresh(panel)"
           >
             <StatTiles
@@ -174,7 +217,7 @@ function isRefreshing(panel: Panel): boolean {
               :entries="data.activity"
             />
 
-            <NativeWidgetBody v-else :id="panel.widget.id" />
+            <NativeWidgetBody v-else :id="panel.widget.id" @dismiss="toggle(panel.widget.id)" />
           </PanelCard>
         </li>
       </ul>

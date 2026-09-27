@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { DashboardResponse, DashboardWidget, WidgetLayoutEntry } from '@/types/api'
+import { isPinnedPanel } from '@/components/dashboard/panels'
 import { rest } from '@/services/rest'
 
 /** Shared with the native widget queries so both live in one cache namespace. */
@@ -14,6 +15,7 @@ export const nativeWidgetKey = (id: string) => ['admin-suite', 'dashboard-widget
 export interface Panel {
   widget: DashboardWidget
   visible: boolean
+  collapsed: boolean
 }
 
 function indexOfId(entries: readonly WidgetLayoutEntry[], id: string): number {
@@ -75,6 +77,22 @@ export function reorderEntries(
   next.splice(to, 0, moved)
 
   return next
+}
+
+/**
+ * Fold one panel down to its header, or back.
+ *
+ * Kept separate from `toggleEntry` because the two are different gestures on
+ * different fields: one removes the panel from the dashboard entirely, the
+ * other only hides its body while the panel stays put.
+ */
+export function toggleCollapsedEntry(
+  entries: readonly WidgetLayoutEntry[],
+  id: string,
+): WidgetLayoutEntry[] {
+  return entries.map((entry) =>
+    entry.id === id ? { ...entry, collapsed: !entry.collapsed } : entry,
+  )
 }
 
 export function toggleEntry(
@@ -149,7 +167,7 @@ export function useDashboard() {
     return entries.value.flatMap((entry) => {
       const widget = byId.get(entry.id)
 
-      return widget ? [{ widget, visible: entry.visible }] : []
+      return widget ? [{ widget, visible: entry.visible, collapsed: entry.collapsed }] : []
     })
   })
 
@@ -175,19 +193,35 @@ export function useDashboard() {
   /**
    * The index a move of `delta` would land on, skipping hidden panels so the
    * visible grid shifts by exactly one. -1 when the move is not possible.
+   *
+   * A pinned panel -- the welcome panel -- is a wall rather than a destination.
+   * It does not move at all, and the panel directly under it cannot swap
+   * upward past it, so a scan heading that way stops there and reports no
+   * target. Returning -1 is what both disables the up arrow and refuses the
+   * move, because `canMove` and `move` are this function's only callers, so the
+   * greyed-out button and the refused gesture cannot drift apart.
+   *
+   * The wall applies to visible panels, like the rest of the scan. A hidden
+   * welcome panel is off the dashboard and must not freeze the panel above it,
+   * or hiding it would leave a widget at the top of the grid with a disabled up
+   * arrow and other widgets visibly above it in the layout.
    */
   function targetIndex(id: string, delta: number): number {
     const list = entries.value
     const from = list.findIndex((entry) => entry.id === id)
 
-    if (from === -1) {
+    if (from === -1 || isPinnedPanel(id)) {
       return -1
     }
 
     for (let to = from + delta; to >= 0 && to < list.length; to += delta) {
-      if (list[to]?.visible === true) {
-        return to
+      const entry = list[to]
+
+      if (!entry || !entry.visible) {
+        continue
       }
+
+      return isPinnedPanel(entry.id) ? -1 : to
     }
 
     return -1
@@ -208,7 +242,18 @@ export function useDashboard() {
     commit(moveEntry(entries.value, id, to - from))
   }
 
+  /**
+   * The drag has to honour the same wall as the arrows, or the pin would only
+   * be true of the buttons: dragging the welcome panel, or dropping anything
+   * onto its slot, is refused here for exactly the reason `targetIndex` stops.
+   * Without this the up arrow would be greyed out while the drag happily put a
+   * panel above it.
+   */
   function reorder(id: string, targetId: string): void {
+    if (isPinnedPanel(id) || isPinnedPanel(targetId)) {
+      return
+    }
+
     commit(reorderEntries(entries.value, id, targetId))
   }
 
@@ -216,8 +261,12 @@ export function useDashboard() {
     commit(toggleEntry(entries.value, id))
   }
 
+  function toggleCollapsed(id: string): void {
+    commit(toggleCollapsedEntry(entries.value, id))
+  }
+
   function reset(): void {
-    commit(widgets.value.map((widget) => ({ id: widget.id, visible: true })))
+    commit(widgets.value.map((widget) => ({ id: widget.id, visible: true, collapsed: false })))
   }
 
   return {
@@ -234,6 +283,7 @@ export function useDashboard() {
     move,
     reorder,
     toggle,
+    toggleCollapsed,
     reset,
   }
 }

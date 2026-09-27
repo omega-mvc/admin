@@ -5,10 +5,11 @@ import type { SidebarState } from '@/types/api'
 import { rest } from '@/services/rest'
 import { useQuery } from '@tanstack/vue-query'
 
-/** Global UI state: sidebar visibility and command palette. */
+/** Global UI state: sidebar visibility, command palette, screen options. */
 export const useAppStore = defineStore('app', () => {
   const sidebar = ref<SidebarState>('expanded')
   const paletteOpen = ref(false)
+  const screenOptionsOpen = ref(false)
   const bootError = ref<string | null>(null)
 
   const sidebarCollapsed = computed(() => sidebar.value === 'collapsed')
@@ -21,6 +22,15 @@ export const useAppStore = defineStore('app', () => {
     paletteOpen.value = force ?? !paletteOpen.value
   }
 
+  /**
+   * The panel is rendered by `DashboardView`, not here, because the widget list
+   * comes from `useDashboard()`. The button that owns it is in the toolbar in
+   * `App.vue`, so the flag has to outlive the component that toggles it.
+   */
+  function toggleScreenOptions(force?: boolean): void {
+    screenOptionsOpen.value = force ?? !screenOptionsOpen.value
+  }
+
   function setBootError(message: string | null): void {
     bootError.value = message
   }
@@ -29,9 +39,11 @@ export const useAppStore = defineStore('app', () => {
     sidebar,
     sidebarCollapsed,
     paletteOpen,
+    screenOptionsOpen,
     bootError,
     toggleSidebar,
     togglePalette,
+    toggleScreenOptions,
     setBootError,
   }
 })

@@ -171,8 +171,8 @@ const dashboardPayload = {
     { id: 'suite-recent-posts', title: 'Recent posts', context: 'suite', span: 1 },
   ],
   layout: [
-    { id: 'suite-stats', visible: true },
-    { id: 'suite-recent-posts', visible: true },
+    { id: 'suite-stats', visible: true, collapsed: false },
+    { id: 'suite-recent-posts', visible: true, collapsed: false },
   ],
 }
 
