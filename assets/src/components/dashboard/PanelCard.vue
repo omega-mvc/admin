@@ -10,9 +10,10 @@ import { __, sprintf } from '@/utils/i18n'
  * the panel body goes into.
  *
  * Pointer dragging is handled by the parent `<li>` (it owns `draggable` and the
- * drag state), so the grip here is decorative. Reordering is still reachable
- * from the keyboard through the two move buttons, which is the only path that
- * works without a pointer.
+ * drag state), so the grip here is decorative, and it is drawn on every card
+ * except the welcome panel, which holds its slot in the layout. Reordering is
+ * still reachable from the keyboard through the two move buttons, which is the
+ * only path that works without a pointer.
  */
 const props = defineProps<{
   title: string
@@ -45,6 +46,15 @@ const props = defineProps<{
    * buttons could produce.
    */
   movable: boolean
+  /**
+   * Whether the drag grip is drawn.
+   *
+   * Off only for the welcome panel, which holds its slot in the layout and so
+   * has no arrangement the grip could produce -- the same reason `movable` is
+   * off there. The drag itself is untouched -- the parent `<li>` owns
+   * `draggable` either way -- so this hides the icon, not the gesture.
+   */
+  grip: boolean
   /**
    * Whether the card is currently folded down to its header.
    *
@@ -85,6 +95,7 @@ const buttonClass =
       :class="collapsed ? '' : 'border-b border-line'"
     >
       <GripVertical
+        v-if="props.grip"
         class="size-4 shrink-0 cursor-grab text-ink-faint group-hover:text-ink-faint"
         aria-hidden="true"
       />

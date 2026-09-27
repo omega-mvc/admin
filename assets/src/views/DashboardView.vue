@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 
 import { useQueryClient } from '@tanstack/vue-query'
-import { Loader2 } from 'lucide-vue-next'
 
 import type { Panel } from '@/composables/useDashboard'
 import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
@@ -126,13 +125,8 @@ function isRefreshing(panel: Panel): boolean {
 
 <template>
   <section>
-    <div v-if="query.isLoading.value" class="flex items-center gap-2 py-16 text-sm text-ink-muted">
-      <Loader2 class="size-4 animate-spin" aria-hidden="true" />
-      {{ __('Loading dashboard…') }}
-    </div>
-
     <div
-      v-else-if="query.isError.value"
+      v-if="query.isError.value"
       class="rounded-lg border border-negative bg-negative-soft p-4 text-sm text-negative"
     >
       <p class="font-medium">{{ __('The dashboard could not be loaded.') }}</p>
@@ -194,6 +188,7 @@ function isRefreshing(panel: Panel): boolean {
             :show-toggle="app.screenOptionsOpen && panel.widget.id !== WELCOME_PANEL_ID"
             :collapsible="panel.widget.id !== WELCOME_PANEL_ID"
             :movable="panel.widget.id !== WELCOME_PANEL_ID"
+            :grip="panel.widget.id !== WELCOME_PANEL_ID"
             :collapsed="panel.collapsed"
             :visible="panel.visible"
             @move="move(panel.widget.id, $event)"

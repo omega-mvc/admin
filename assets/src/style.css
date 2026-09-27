@@ -217,6 +217,39 @@ body.admin-suite-shell #screen-options-link-wrap {
 }
 
 /*
+ * Core's "Collapse Menu" button, at the foot of the admin menu. Hidden rather
+ * than removed, because it is not decoration: the suite's own toolbar button
+ * folds the menu by calling `click()` on this exact element, and `common.js`
+ * persists the outcome with `setUserSetting()`. Deleting the node would leave
+ * that `.click()` a silent no-op and the menu would stop folding. A
+ * `display: none` element still dispatches its event, so the button keeps
+ * working while core's copy of it is off screen.
+ *
+ * Below 782px this element is already `display: none` from `admin-menu.css`,
+ * because from that width the menu reopens through `wp-responsive-open` and
+ * `App.vue` stops using this button, so hiding it changes nothing there.
+ */
+body.admin-suite-shell #collapse-button {
+  display: none;
+}
+
+/*
+ * WordPress's own admin footer: "Thank you for creating with WordPress." on the
+ * left, the version on the right. Scoped to the shell, so it goes from the
+ * suite's dashboard and stays on every other screen, which is the point of the
+ * takeover -- the suite's dashboard is not core's page.
+ *
+ * The version is not a `<span>` of its own. `admin-footer.php:51` wraps the
+ * `update_footer` filter in `#footer-upgrade`, and `core_update_footer()` is
+ * what prints "Version 7.1.2" into it. Hiding that `<p>` therefore takes the
+ * version out and, with it, anything else the filter would have put there.
+ */
+body.admin-suite-shell #footer-left,
+body.admin-suite-shell #footer-upgrade {
+  display: none;
+}
+
+/*
  * Typography and stacking are scoped to the mount point.
  *
  * Tailwind's *preflight* is not: `@import 'tailwindcss'` emits it into the global
@@ -320,16 +353,20 @@ body.admin-suite-shell #screen-options-link-wrap {
  * The suite renders this panel inside a card, so that edge is a card edge and it
  * shows. Two changes, both of them taking something away rather than adding:
  *
- * 1. The label goes. The anchor already carries
- *    `aria-label="Dismiss the welcome panel"`, so the visible word is redundant
- *    for a screen reader as well as for the eye, and `font-size: 0` collapses
- *    it without touching the cross. The cross is a pseudo element, and
- *    `dashboard.css:231` sets `font-size: 24px` on the pseudo element itself, so
- *    the `1em` box it gets from `common.css:825-839` stays 24x24 whatever the
- *    anchor's own size becomes. The padding drops to 6px, which keeps a 36x36
- *    target and, more to the point, ends the control at y=46 -- above the 48px
- *    padding-top where the heading's line box starts, so the two cannot collide
- *    at any width.
+ * 1. Below 782px the label goes and the cross stays; above it, core's own
+ *    desktop shape is left alone, label included, because a card that wide has
+ *    room for it. At the narrow width core drops the label too -- `text-indent:
+ *    40px` with `overflow: hidden` pushes it out of a 20x20 box -- but it takes
+ *    the cross with it, since the same 20x20 box also clips a 24x24 glyph parked
+ *    at `left: -35px`. `font-size: 0` is the label half of core's intent without
+ *    the cross half: the cross is a pseudo element, and `dashboard.css:231` sets
+ *    `font-size: 24px` on the pseudo element itself, so the `1em` box it gets
+ *    from `common.css:825-839` stays 24x24 whatever the anchor's own size
+ *    becomes. Nothing is lost to a screen reader either way, because the anchor
+ *    already carries `aria-label="Dismiss the welcome panel"`. The padding drops
+ *    to 6px at every width, which keeps a 36x36 target and, more to the point,
+ *    ends the control at y=46 -- above the 48px padding-top where the heading's
+ *    line box starts, so the two cannot collide at any width.
  *
  * 2. The header's horizontal padding becomes a card's, 16px, where core's is
  *    48px at every width above 600px and 32px below. That padding is the only
@@ -373,7 +410,6 @@ body.admin-suite-shell #screen-options-link-wrap {
  * page. If core ever fixes it, these rules become redundant.
  */
 #dashboard-widgets-wrap .welcome-panel .welcome-panel-close {
-  font-size: 0;
   padding: 6px;
 }
 
@@ -385,6 +421,7 @@ body.admin-suite-shell #screen-options-link-wrap {
   #dashboard-widgets-wrap .welcome-panel .welcome-panel-close {
     overflow: visible;
     text-indent: 0;
+    font-size: 0;
     width: auto;
     height: auto;
     top: 10px;
