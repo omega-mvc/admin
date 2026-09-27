@@ -3,21 +3,21 @@
 # listed here.
 includes:
 	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+	# Makes PHPStan understand expect(), it(), describe() and type checks the
+	# tests themselves. Every rule it registers inspects a test file, so the
+	# `tests` entry in `paths` below is what gives those rules a target: with
+	# the extension alone and no test file in `paths` it does nothing at all.
+	- vendor/pestphp/pest-plugin-phpstan/extension.neon
 
 parameters:
-	level: 8
+	level: 10
 	phpVersion: 80100
 	paths:
 		- admin-suite.php
 		- uninstall.php
 		- includes
+		- tests
 	bootstrapFiles:
 		- phpstan-bootstrap.php
-	treatPhpDocTypesAsCertain: false
-	reportUnmatchedIgnoredErrors: false
-	ignoreErrors:
-		# The plugin entry file mixes namespaced and global declarations on purpose.
-		-
-			identifier: missingType.iterableValue
-		-
-			identifier: missingType.generics
+	treatPhpDocTypesAsCertain: true
+	reportUnmatchedIgnoredErrors: true

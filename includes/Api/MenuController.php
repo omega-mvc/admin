@@ -254,11 +254,27 @@ final class MenuController {
 	private function buildSubmenu(): array {
 		global $submenu;
 
-		return is_array( $submenu ) ? $submenu : array();
+		$built = array();
+
+		// WordPress keys the global by parent slug, but nothing stops a third party
+		// from writing into it, so the shape is established here rather than
+		// asserted: only a string key holding an array is a usable submenu.
+		foreach ( (array) $submenu as $parent => $entries ) {
+			if ( is_string( $parent ) && is_array( $entries ) ) {
+				$built[ $parent ] = $entries;
+			}
+		}
+
+		return $built;
 	}
 
 	/**
 	 * Convert the two WordPress global menus into a single tree.
+	 *
+	 * A menu tuple is indexed by position, but it is not a list: core writes
+	 * `$menu[ $position ]` as well as `$menu[]`, so a tuple reached through
+	 * a gap in the top-level menu has non-sequential integer keys. The tuple
+	 * readers below therefore take any key type rather than a list.
 	 *
 	 * @param array<mixed>                $menu    Global $menu, as built by WordPress.
 	 * @param array<string, array<mixed>> $submenu Global $submenu.
@@ -287,7 +303,7 @@ final class MenuController {
 
 			$children = array();
 
-			if ( isset( $submenu[ $slug ] ) && is_array( $submenu[ $slug ] ) ) {
+			if ( isset( $submenu[ $slug ] ) ) {
 				$children = $this->normalise( $submenu[ $slug ], array(), $context );
 			}
 
@@ -308,7 +324,7 @@ final class MenuController {
 	/**
 	 * Extract the slug from a menu tuple.
 	 *
-	 * @param array<int, mixed> $entry Menu tuple.
+	 * @param array<array-key, mixed> $entry Menu tuple.
 	 */
 	private function slug( array $entry ): string {
 		$slug = $entry[2] ?? '';
@@ -323,7 +339,7 @@ final class MenuController {
 	 * into the top-level menu. It has no label, no icon and no capability, so it
 	 * must not be rendered as a navigable item.
 	 *
-	 * @param array<int, mixed> $entry Menu tuple.
+	 * @param array<array-key, mixed> $entry Menu tuple.
 	 */
 	private function isSeparator( array $entry ): bool {
 		$classes = $entry[4] ?? '';
@@ -334,7 +350,7 @@ final class MenuController {
 	/**
 	 * Extract a safe, translated label from a menu tuple.
 	 *
-	 * @param array<int, mixed> $entry Menu tuple.
+	 * @param array<array-key, mixed> $entry Menu tuple.
 	 */
 	private function label( array $entry ): string {
 		$label = $entry[0] ?? '';
@@ -358,7 +374,7 @@ final class MenuController {
 	 * A hook suffix is sanitised to letters, digits, dashes and underscores, so
 	 * it never contains `.php` or a slash. That is the discriminator.
 	 *
-	 * @param array<int, mixed> $entry Menu tuple.
+	 * @param array<array-key, mixed> $entry Menu tuple.
 	 */
 	private function url( array $entry ): string {
 		$url = $entry[2] ?? '';
@@ -387,9 +403,10 @@ final class MenuController {
 		// the network admin's own entry back to the site admin.
 		global $_parent_pages;
 
-		$parent = isset( $_parent_pages[ $url ] ) ? $_parent_pages[ $url ] : null;
+		$pages  = is_array( $_parent_pages ) ? $_parent_pages : array();
+		$parent = $pages[ $url ] ?? null;
 
-		if ( is_string( $parent ) && '' !== $parent && ! isset( $_parent_pages[ $parent ] ) ) {
+		if ( is_string( $parent ) && '' !== $parent && ! isset( $pages[ $parent ] ) ) {
 			return esc_url_raw( $base . add_query_arg( 'page', $url, $parent ) );
 		}
 

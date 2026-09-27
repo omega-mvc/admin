@@ -109,9 +109,13 @@ final class OutputBuffer {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only.
 		$scheme = is_ssl() ? 'https' : 'http';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only.
-		$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$host = isset( $_SERVER['HTTP_HOST'] ) && is_string( $_SERVER['HTTP_HOST'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) )
+			: '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only.
-		$uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
 
 		if ( '' === $host ) {
 			return '';

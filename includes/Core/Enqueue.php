@@ -253,8 +253,19 @@ final class Enqueue {
 			return null;
 		}
 
+		$entry = $decoded[ $key ];
+
+		// findEntryKey() only ever returns a key whose chunk carried a string
+		// file, so this is a formality rather than a real branch. It is still
+		// checked: a manifest is build output and can be stale, truncated or
+		// hand-edited, and a missing file would otherwise enqueue a script whose
+		// src ends in the dist directory and take the whole dashboard with it.
+		if ( ! is_array( $entry ) || ! isset( $entry['file'] ) || ! is_string( $entry['file'] ) ) {
+			return null;
+		}
+
 		return array(
-			'file' => (string) $decoded[ $key ]['file'],
+			'file' => $entry['file'],
 			'css'  => $this->collectCss( $decoded, $key ),
 		);
 	}
@@ -272,10 +283,11 @@ final class Enqueue {
 	 * @return list<string>
 	 */
 	private function collectCss( array $manifest, string $entryKey ): array {
-		$css = array();
+		$css   = array();
+		$entry = $manifest[ $entryKey ] ?? null;
 
-		if ( isset( $manifest[ $entryKey ]['css'] ) && is_array( $manifest[ $entryKey ]['css'] ) ) {
-			foreach ( $manifest[ $entryKey ]['css'] as $handle ) {
+		if ( is_array( $entry ) && isset( $entry['css'] ) && is_array( $entry['css'] ) ) {
+			foreach ( $entry['css'] as $handle ) {
 				if ( is_string( $handle ) ) {
 					$css[] = $handle;
 				}
@@ -447,8 +459,14 @@ final class Enqueue {
 		}
 
 		foreach ( $nodes as $node ) {
-			if ( 'view-site' === $node->id ) {
-				return esc_url_raw( (string) $node->href );
+			if ( ! is_object( $node ) ) {
+				continue;
+			}
+
+			$id = is_string( $node->id ?? null ) ? $node->id : '';
+
+			if ( 'view-site' === $id ) {
+				return esc_url_raw( is_string( $node->href ?? null ) ? $node->href : '' );
 			}
 		}
 
@@ -544,20 +562,23 @@ final class Enqueue {
 		$label = '';
 
 		foreach ( $nodes as $node ) {
-			$text = wp_strip_all_tags( (string) $node->title );
+			if ( ! is_object( $node ) ) {
+				continue;
+			}
 
-			if ( $parentId === $node->id ) {
+			$text = wp_strip_all_tags( is_string( $node->title ?? null ) ? $node->title : '' );
+			$id   = is_string( $node->id ?? null ) ? $node->id : '';
+
+			if ( $parentId === $id ) {
 				$label = $text;
 
 				continue;
 			}
 
-			$id = (string) $node->id;
-
 			$items[] = array(
 				'id'     => $id,
 				'label'  => $text,
-				'url'    => esc_url_raw( (string) $node->href ),
+				'url'    => esc_url_raw( is_string( $node->href ?? null ) ? $node->href : '' ),
 				'newTab' => in_array( $id, $newTabIds, true ),
 			);
 		}

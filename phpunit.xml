@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd" bootstrap="tests/bootstrap.php" cacheDirectory=".phpunit.cache" colors="true" beStrictAboutOutputDuringTests="true" failOnRisky="true" failOnWarning="true" displayDetailsOnTestsThatTriggerDeprecations="true" displayDetailsOnTestsThatTriggerErrors="true" displayDetailsOnTestsThatTriggerNotices="true" displayDetailsOnTestsThatTriggerWarnings="true">
+  <!--
+		The source section is what the type coverage report measures. The
+		measured body of code is includes/ and nothing else: naming the plugin
+		root instead would sweep in the test code, the build output and every
+		dependency, which is not what the number should describe.
+
+		admin-suite.php and uninstall.php are outside this scope by decision.
+		Note also that the type coverage plugin reads the source with
+		`source()->includeDirectories()`, so a `file` entry would be silently
+		ignored here even if one were added.
+	-->
+  <source restrictNotices="true" restrictWarnings="true" ignoreIndirectDeprecations="true">
+    <include>
+      <directory>includes</directory>
+    </include>
+    <exclude>
+      <!-- The test code itself is never part of the measurement. -->
+      <directory>tests</directory>
+    </exclude>
+  </source>
+  <testsuites>
+    <testsuite name="Admin Suite">
+      <directory suffix="Test.php">tests</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

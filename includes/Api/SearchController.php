@@ -59,7 +59,9 @@ final class SearchController {
 	 * @return \WP_REST_Response
 	 */
 	public function search( \WP_REST_Request $request ): \WP_REST_Response {
-		$term  = (string) $request->get_param( 'q' );
+		$term = $request->get_param( 'q' );
+		$term = is_scalar( $term ) ? (string) $term : '';
+
 		$found = array(
 			'posts'    => $this->searchPosts( $term ),
 			'terms'    => $this->searchTerms( $term ),
@@ -163,10 +165,6 @@ final class SearchController {
 		$results = array();
 
 		foreach ( $terms as $found ) {
-			if ( ! $found instanceof \WP_Term ) {
-				continue;
-			}
-
 			$results[] = array(
 				'id'    => $found->term_id,
 				'type'  => 'term',
@@ -190,6 +188,11 @@ final class SearchController {
 			return array();
 		}
 
+		/**
+		 * The matched users.
+		 *
+		 * @var list<\WP_User> $users Documented as WP_User[] whatever the query.
+		 */
 		$users = get_users(
 			array(
 				'search'         => '*' . $term . '*',
@@ -199,17 +202,15 @@ final class SearchController {
 			)
 		);
 
-		return array_values(
-			array_map(
-				static fn ( \WP_User $user ): array => array(
-					'id'    => $user->ID,
-					'type'  => 'user',
-					'label' => wp_strip_all_tags( $user->display_name ),
-					'sub'   => (string) $user->user_email,
-					'url'   => (string) get_edit_user_link( $user->ID ),
-				),
-				$users
-			)
+		return array_map(
+			static fn ( \WP_User $user ): array => array(
+				'id'    => $user->ID,
+				'type'  => 'user',
+				'label' => wp_strip_all_tags( $user->display_name ),
+				'sub'   => (string) $user->user_email,
+				'url'   => (string) get_edit_user_link( $user->ID ),
+			),
+			$users
 		);
 	}
 

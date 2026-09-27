@@ -72,12 +72,15 @@ final class AccountMenu {
 	 * priority the node is guaranteed to exist, and `remove_node()` recurses, so
 	 * the `user-actions` group and both of its children go with it.
 	 *
+	 * The argument is typed natively rather than only in the docblock: the method
+	 * is hooked to `admin_bar_menu`, which core only ever fires with a
+	 * WP_Admin_Bar, and stating it in the signature is what lets the instanceof
+	 * check go instead of lingering as a branch that cannot be false.
+	 *
 	 * @param \WP_Admin_Bar $wp_admin_bar The bar being built.
 	 */
-	public function removeFromBar( $wp_admin_bar ): void {
-		if ( $wp_admin_bar instanceof \WP_Admin_Bar ) {
-			$wp_admin_bar->remove_node( 'my-account' );
-		}
+	public function removeFromBar( \WP_Admin_Bar $wp_admin_bar ): void {
+		$wp_admin_bar->remove_node( 'my-account' );
 	}
 
 		/**
@@ -109,6 +112,15 @@ final class AccountMenu {
 
 		if ( ! is_array( $menu ) || ! current_user_can( 'read' ) ) {
 			return;
+		}
+
+		// $submenu is null rather than an array until something registers a
+		// submenu, and on a single site nothing ever does. Writing the offset
+		// further down is what created it, so say so instead of letting the
+		// assignment do it silently.
+		if ( ! is_array( $submenu ) ) {
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- the sidebar is rendered from these globals.
+			$submenu = array();
 		}
 
 		$rows = $this->rows();
@@ -187,7 +199,7 @@ final class AccountMenu {
 		$rows   = array();
 		$target = get_edit_profile_url();
 
-		if ( is_string( $target ) && '' !== $target ) {
+		if ( '' !== $target ) {
 			$rows[] = array(
 				// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- deliberately core's own string, so a translated site shows core's wording.
 				esc_html( __( 'Edit Profile', 'default' ) ),
@@ -200,7 +212,7 @@ final class AccountMenu {
 
 		$logout = wp_logout_url();
 
-		if ( is_string( $logout ) && '' !== $logout ) {
+		if ( '' !== $logout ) {
 			$rows[] = array(
 				// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- deliberately core's own string, so a translated site shows core's wording.
 				esc_html( __( 'Log Out', 'default' ) ),
@@ -289,7 +301,12 @@ final class AccountMenu {
 			}
 		}
 
-		if ( null === $next || ! isset( $menu[ $next ][4] ) || ! is_string( $menu[ $next ][4] ) ) {
+		if (
+			null === $next
+			|| ! is_array( $menu[ $next ] )
+			|| ! isset( $menu[ $next ][4] )
+			|| ! is_string( $menu[ $next ][4] )
+		) {
 			return;
 		}
 

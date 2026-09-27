@@ -80,10 +80,24 @@ final class UserPreferencesController {
 	 * Read the current user's preferences.
 	 */
 	public function getPreferences(): \WP_REST_Response {
+		return rest_ensure_response( $this->current() );
+	}
+
+	/**
+	 * The stored preferences, merged over the defaults.
+	 *
+	 * The write path used to reach back into the response with a `(array)` cast
+	 * on `get_data()` to get this same array. Shaping it in one method means the
+	 * two paths cannot drift apart, and gives the reader a string-keyed type
+	 * rather than a bare cast.
+	 *
+	 * @return array<string, mixed> Preferences, defaults first.
+	 */
+	private function current(): array {
 		$user_id = get_current_user_id();
 
 		if ( $user_id <= 0 ) {
-			return rest_ensure_response( self::DEFAULTS );
+			return self::DEFAULTS;
 		}
 
 		$stored = get_user_meta( $user_id, self::META_KEY, true );
@@ -92,7 +106,7 @@ final class UserPreferencesController {
 			$stored = array();
 		}
 
-		return rest_ensure_response( array_merge( self::DEFAULTS, array_intersect_key( $stored, self::DEFAULTS ) ) );
+		return array_merge( self::DEFAULTS, array_intersect_key( $stored, self::DEFAULTS ) );
 	}
 
 	/**
@@ -111,13 +125,21 @@ final class UserPreferencesController {
 			);
 		}
 
+		/**
+		 * The raw request body. Core returns null from get_json_params() when the
+		 * body is not JSON, which the stub does not declare, so the null is
+		 * restated here. Without it the check below is provably dead, and
+		 * dropping the check would hand null to the rest of the method.
+		 *
+		 * @var array<array-key, mixed>|null $payload
+		 */
 		$payload = $request->get_json_params();
 
 		if ( ! is_array( $payload ) ) {
 			$payload = array();
 		}
 
-		$clean = $this->sanitize( $payload, (array) $this->getPreferences()->get_data() );
+		$clean = $this->sanitize( $payload, $this->current() );
 
 		update_user_meta( $user_id, self::META_KEY, $clean );
 
@@ -127,8 +149,12 @@ final class UserPreferencesController {
 	/**
 	 * Sanitize the payload, dropping unknown keys.
 	 *
-	 * @param array<string, mixed> $payload Incoming payload.
-	 * @param array<string, mixed> $current Current preferences.
+	 * The payload keys are `array-key` and not `string` on purpose: a JSON body
+	 * that is a list arrives with integer keys, and the loop below only ever
+	 * looks up the schema's own string keys, so those entries are dropped.
+	 *
+	 * @param array<array-key, mixed> $payload Incoming payload.
+	 * @param array<string, mixed>    $current Current preferences.
 	 * @return array<string, mixed>
 	 */
 	private function sanitize( array $payload, array $current ): array {
@@ -139,7 +165,8 @@ final class UserPreferencesController {
 				continue;
 			}
 
-			$value = call_user_func( $callback, $payload[ $key ] );
+			$raw   = $payload[ $key ];
+			$value = call_user_func( $callback, is_scalar( $raw ) ? (string) $raw : '' );
 
 			if ( isset( self::ENUMS[ $key ] ) && ! in_array( $value, self::ENUMS[ $key ], true ) ) {
 				continue;

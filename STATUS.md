@@ -10,7 +10,7 @@ fuori dal versionamento. Se intendevi l'altra, si sposta.
 il tool esiste ma risponde `No desktop browser is connected to this session`. Quindi ogni riga che
 riguarda l'aspetto è **non verificata visivamente**: è verificata sul codice, sul markup servito e
 sui CSS, non su uno schermo. Le verifiche fatte sono state `composer run lint` (phpcs + PHPStan
-livello 8), la costruzione Vite con `vue-tsc`, ESLint, Prettier, il test di boot con linkedom, e il
+livello 10), la costruzione Vite con `vue-tsc`, ESLint, Prettier, il test di boot con linkedom, e il
 confronto del DOM servito via `curl`.
 
 ## Cosa è stato fatto

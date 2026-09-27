@@ -83,6 +83,14 @@ final class SettingsController {
 	 * @param \WP_REST_Request<array<string, mixed>> $request Incoming request.
 	 */
 	public function updateSettings( \WP_REST_Request $request ): \WP_REST_Response {
+		/**
+		 * The raw request body. Core returns null from get_json_params() when the
+		 * body is not JSON, which the stub does not declare, so the null is
+		 * restated here. Without it the check below is provably dead, and
+		 * dropping the check would hand null to the rest of the method.
+		 *
+		 * @var array<array-key, mixed>|null $payload
+		 */
 		$payload = $request->get_json_params();
 
 		if ( ! is_array( $payload ) ) {
@@ -118,8 +126,14 @@ final class SettingsController {
 	 * Unknown keys are dropped rather than stored, so a rogue client cannot
 	 * persist arbitrary options under this key.
 	 *
-	 * @param array<string, mixed> $payload Incoming payload.
-	 * @param array<string, mixed> $current Current settings.
+	 * The payload keys are `array-key` and not `string` on purpose. A JSON body
+	 * that is a list rather than an object arrives with integer keys, and this
+	 * is a real request shape, not a theoretical one. It does not matter here:
+	 * the loop only ever looks up the schema's own string keys, so an integer
+	 * key simply never matches and the entry is dropped.
+	 *
+	 * @param array<array-key, mixed> $payload Incoming payload.
+	 * @param array<string, mixed>    $current Current settings.
 	 * @return array<string, mixed>
 	 */
 	private function sanitize( array $payload, array $current ): array {

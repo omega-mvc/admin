@@ -25,6 +25,11 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 function admin_suite_uninstall_current_site(): void {
 	delete_option( 'admin_suite_settings' );
 
+	/**
+	 * The database handle.
+	 *
+	 * @var wpdb $wpdb WordPress assigns this global without a declaration.
+	 */
 	global $wpdb;
 
 	// Two LIKE clauses, not one: WordPress stores a transient as the value row
@@ -63,6 +68,11 @@ if ( is_multisite() ) {
 
 unset( $admin_suite_site_ids, $admin_suite_site_id );
 
+/**
+ * The database handle.
+ *
+ * @var wpdb $wpdb WordPress assigns this global without a declaration.
+ */
 // User meta lives in one global table shared by the whole network, so these
 // two deletes cover every site and do not need the loop above. Both keys are
 // named here because DashboardController writes the layout meta and

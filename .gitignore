@@ -19,6 +19,8 @@
 /assets/*.log
 /assets/.vite/
 .phpunit.result.cache
+.phpunit.cache/
+/build/
 .php-cs-fixer.cache
 
 # Editor and OS cruft.

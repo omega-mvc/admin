@@ -260,6 +260,14 @@ final class DashboardController {
 			);
 		}
 
+		/**
+		 * The raw request body. Core returns null from get_json_params() when the
+		 * body is not JSON, which the stub does not declare, so the null is
+		 * restated here. Without it the check below is provably dead, and
+		 * dropping the check would hand null to the rest of the method.
+		 *
+		 * @var array<array-key, mixed>|null $payload
+		 */
 		$payload = $request->get_json_params();
 		$layout  = ( is_array( $payload ) && isset( $payload['layout'] ) && is_array( $payload['layout'] ) )
 			? $payload['layout']
@@ -314,10 +322,10 @@ final class DashboardController {
 
 		return array(
 			'posts'           => $this->total( $posts ),
-			'postsDraft'      => isset( $posts->draft ) ? (int) $posts->draft : 0,
+			'postsDraft'      => isset( $posts->draft ) && is_numeric( $posts->draft ) ? (int) $posts->draft : 0,
 			'pages'           => $this->total( $pages ),
-			'media'           => isset( $media->inherit ) ? (int) $media->inherit : 0,
-			'users'           => isset( $users['total_users'] ) ? (int) $users['total_users'] : 0,
+			'media'           => isset( $media->inherit ) && is_numeric( $media->inherit ) ? (int) $media->inherit : 0,
+			'users'           => $users['total_users'],
 			'commentsPending' => isset( $comments->moderated ) ? (int) $comments->moderated : 0,
 		);
 	}
@@ -552,7 +560,8 @@ final class DashboardController {
 		 * 0 = hide, 1 = toggled to show or single site creator, 2 = multisite site owner.
 		 * Copied from `wp-admin/index.php:177-179`.
 		 */
-		$option = (int) get_user_meta( get_current_user_id(), 'show_welcome_panel', true );
+		$stored = get_user_meta( get_current_user_id(), 'show_welcome_panel', true );
+		$option = is_numeric( $stored ) ? (int) $stored : 0;
 		$hide   = ( 0 === $option || ( 2 === $option && wp_get_current_user()->user_email !== get_option( 'admin_email' ) ) );
 
 		if ( $hide ) {
@@ -675,11 +684,38 @@ final class DashboardController {
 		/**
 		 * Allows plugins to contribute dashboard widgets to the SPA.
 		 *
+		 * A filter may return anything, while apply_filters() is templated on its
+		 * input and therefore hands the input type straight back. Restating the
+		 * result as mixed keeps the check below honest instead of provably dead.
+		 *
+		 * The result is then rebuilt key by key rather than merely checked, because
+		 * the declared return type promises two levels of shape and only the first
+		 * is something this method can verify about a third party's return value.
+		 *
 		 * @param array<string, array<string, string>> $widgets Keyed by widget id.
+		 * @var mixed $filtered
 		 */
 		$filtered = apply_filters( 'admin_suite_dashboard_widgets', $widgets );
 
-		return is_array( $filtered ) ? $filtered : array();
+		$clean = array();
+
+		foreach ( (array) $filtered as $id => $widget ) {
+			if ( ! is_string( $id ) || ! is_array( $widget ) ) {
+				continue;
+			}
+
+			$fields = array();
+
+			foreach ( $widget as $field => $value ) {
+				if ( is_string( $field ) && is_string( $value ) ) {
+					$fields[ $field ] = $value;
+				}
+			}
+
+			$clean[ $id ] = $fields;
+		}
+
+		return $clean;
 	}
 
 	/**
@@ -714,19 +750,28 @@ final class DashboardController {
 	 * priority, so iterating the axes the other way round silently drops every
 	 * sidebar widget (Quick Draft, WordPress Events and News).
 	 *
-	 * @return array<string, array<string, mixed>>
+	 * @return array<string, array<array-key, mixed>> Keyed by widget id.
 	 */
 	private function metaBoxes(): array {
 		$flat = array();
 
 		foreach ( $this->dashboardBoxes() as $group ) {
+			if ( ! is_array( $group ) ) {
+				continue;
+			}
+
 			foreach ( array( 'core', 'high', 'low', 'default' ) as $priority ) {
 				$boxes = isset( $group[ $priority ] ) && is_array( $group[ $priority ] ) ? $group[ $priority ] : array();
 
 				foreach ( $boxes as $id => $box ) {
-					if ( is_array( $box ) && ! isset( $flat[ $id ] ) ) {
-						$flat[ $id ] = $box;
+					// Core registers a string id for every widget. A non-string one
+					// cannot be returned under the declared key type and is dropped
+					// rather than silently reshaped into one.
+					if ( ! is_string( $id ) || ! is_array( $box ) || isset( $flat[ $id ] ) ) {
+						continue;
 					}
+
+					$flat[ $id ] = $box;
 				}
 			}
 		}
@@ -737,7 +782,11 @@ final class DashboardController {
 	/**
 	 * The dashboard's meta box groups, keyed by context.
 	 *
-	 * @return array<string, array<string, mixed>>
+	 * Core declares the global nowhere, so nothing past the first level can be
+	 * promised here: a context holds priorities and a priority holds boxes, but
+	 * that is the caller's knowledge, not this method's.
+	 *
+	 * @return array<array-key, mixed>
 	 */
 	private function dashboardBoxes(): array {
 		global $wp_meta_boxes;
@@ -748,9 +797,13 @@ final class DashboardController {
 		// network admin show the site dashboard's widgets.
 		$screen = AdminContext::screenId( $this->admin );
 
-		return isset( $wp_meta_boxes[ $screen ] ) && is_array( $wp_meta_boxes[ $screen ] )
-			? $wp_meta_boxes[ $screen ]
-			: array();
+		if ( ! is_array( $wp_meta_boxes ) || ! isset( $wp_meta_boxes[ $screen ] ) ) {
+			return array();
+		}
+
+		$boxes = $wp_meta_boxes[ $screen ];
+
+		return is_array( $boxes ) ? $boxes : array();
 	}
 
 	/**
@@ -789,7 +842,11 @@ final class DashboardController {
 	 * parameter, so the args array lands there and gets rendered as an admin
 	 * notice, which logs "Array to string conversion" on every request.
 	 *
-	 * @param array<string, mixed> $box The whole meta box definition.
+	 * The key type stays open on purpose: the method reads `callback` and passes
+	 * the array on to core untouched, so it never relies on the box being keyed
+	 * by strings.
+	 *
+	 * @param array<array-key, mixed> $box The whole meta box definition.
 	 */
 	private function renderCallback( array $box ): string {
 		$callback = $box['callback'] ?? null;
@@ -868,7 +925,7 @@ final class DashboardController {
 			$seen[ $id ] = true;
 			$out[]       = array(
 				'id'      => $id,
-				'visible' => ! isset( $row['visible'] ) || (bool) $row['visible'],
+				'visible' => ! is_array( $row ) || ! isset( $row['visible'] ) || (bool) $row['visible'],
 			);
 		}
 

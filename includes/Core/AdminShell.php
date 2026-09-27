@@ -193,7 +193,11 @@ final class AdminShell {
 		// same way, so there is nothing to recompute here.
 		$screen_id = $screen->id;
 
-		if ( empty( $wp_meta_boxes[ $screen_id ] ) || ! is_array( $wp_meta_boxes[ $screen_id ] ) ) {
+		if (
+			! is_array( $wp_meta_boxes )
+			|| empty( $wp_meta_boxes[ $screen_id ] )
+			|| ! is_array( $wp_meta_boxes[ $screen_id ] )
+		) {
 			return;
 		}
 
@@ -208,7 +212,7 @@ final class AdminShell {
 				}
 
 				foreach ( $boxes as $box ) {
-					if ( ! is_array( $box ) || empty( $box['id'] ) ) {
+					if ( ! is_array( $box ) || empty( $box['id'] ) || ! is_string( $box['id'] ) ) {
 						continue;
 					}
 
@@ -293,7 +297,8 @@ final class AdminShell {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only legacy URL check.
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$raw  = isset( $_GET['page'] ) ? $_GET['page'] : '';
+		$page = is_string( $raw ) ? sanitize_key( wp_unslash( $raw ) ) : '';
 
 		if ( self::LEGACY_SLUG !== $page ) {
 			return;
